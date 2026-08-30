@@ -38,7 +38,7 @@ SYSTEM_SPECIFICATION_TOOL_PROJECT=./my-specification npm run dev
 
 For local development before publishing, use `npm link` and then run `system-specification-tool`, or run `node bin/system-specification-tool.mjs` directly.
 
-Test-result JSON, XUnit XML, MSTest TRX, and TAP files can be uploaded on the top-level node. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
+Test-result JSON, XUnit XML, MSTest TRX, TAP, and captured Cargo test output files can be uploaded on the top-level node. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
 
 Run the test suite with:
 

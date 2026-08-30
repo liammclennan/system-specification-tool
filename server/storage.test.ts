@@ -113,6 +113,14 @@ describe("ProjectStorage", () => {
     await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(tap), mimetype: "text/plain", originalname: "test.tap" });
     expect((await store.verify("system")).tree.claims[0].verification).toBe("failed");
   });
+  it("verifies claims from captured cargo test output", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "The Rust service works.");
+    const claim = project.tree.claims[0];
+    const output = `running 1 test\ntest service::${claim.shortId} ... ok\ntest result: ok. 1 passed; 0 failed\n`;
+    await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(output), mimetype: "text/plain", originalname: "cargo_test_result.txt" });
+    expect((await store.verify("system")).tree.claims[0].verification).toBe("verified");
+  });
   it("requires every sub-node to be verified before verifying its parent", async () => {
     const store = await fixture(); let project = await store.createProject("system");
     project = await store.createNode("system", project.rootNodeId, "Child");

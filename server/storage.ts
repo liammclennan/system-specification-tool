@@ -45,6 +45,14 @@ function parseTapAssertions(tap: string): TestAssertion[] {
   }
   return assertions;
 }
+function parseCargoAssertions(output: string): TestAssertion[] {
+  const assertions: TestAssertion[] = [];
+  const clean = output.replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, "");
+  for (const match of clean.matchAll(/^\s*test\s+(.+?)\s+\.\.\.\s+(ok|FAILED|ignored)\s*$/gim)) {
+    assertions.push({ name: match[1].trim(), status: match[2].toLowerCase() === "ok" ? "passed" : match[2].toLowerCase() === "failed" ? "failed" : "skipped" });
+  }
+  return assertions;
+}
 
 export class StorageError extends Error { status = 400; }
 
@@ -230,9 +238,11 @@ export class ProjectStorage {
     if (nodeId !== manifest.rootNodeId) throw new StorageError("Test results can only be attached to the top-level node");
     const isXml = /\.(?:xml|trx)$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml";
     const isTap = /\.tap$/i.test(file.originalname);
-    if (!isXml && !isTap && file.mimetype !== "application/json" && file.mimetype !== "text/json" && file.mimetype !== "text/plain") throw new StorageError("Test results must be a JSON, XUnit XML, MSTest TRX, or TAP file");
+    const isCargo = /\.(?:txt|log)$/i.test(file.originalname) && /^\s*test\s+.+?\s+\.\.\.\s+(?:ok|FAILED|ignored)\s*$/im.test(file.buffer.toString("utf8"));
+    if (!isXml && !isTap && !isCargo && file.mimetype !== "application/json" && file.mimetype !== "text/json") throw new StorageError("Test results must be a JSON, XUnit XML, MSTest TRX, TAP, or Cargo test file");
     if (isXml) { if (!/^\s*</.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid XML"); }
     else if (isTap) { if (!/^(?:\s*TAP version\b|\s*(?:not )?ok\b|\s*1\.\.\d+)/im.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid TAP"); }
+    else if (isCargo) { /* Captured Cargo output is validated by its test-result line format. */ }
     else { try { JSON.parse(file.buffer.toString("utf8")); } catch { throw new StorageError("Test results file is not valid JSON"); } }
     const id = randomUUID(); const fileName = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_") || "test-results.json";
     await mkdir(join(path, "test-results"), { recursive: true });
@@ -255,6 +265,7 @@ export class ProjectStorage {
         const raw = await readFile(join(resultsPath, file), "utf8");
         if (/\.trx$/i.test(file)) { assertions.push(...parseTrxAssertions(raw)); continue; }
         if (/\.tap$/i.test(file)) { assertions.push(...parseTapAssertions(raw)); continue; }
+        if (/\.(?:txt|log)$/i.test(file)) { assertions.push(...parseCargoAssertions(raw)); continue; }
         if (/\.xml$/i.test(file)) { assertions.push(...parseXunitAssertions(raw)); continue; }
         let report: { testResults?: { assertionResults?: { fullName?: string; title?: string; status?: string }[] }[] };
         try { report = JSON.parse(raw); } catch { throw new StorageError(`Test results file ${file} is not valid JSON`); }
