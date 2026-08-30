@@ -6,6 +6,23 @@ import type { Claim, NodeRecord, Project, TestResultsFile, VerificationStatus } 
 type NodeMeta = { id: string; name: string; parentId: string | null };
 type Manifest = { formatVersion: 1; rootNodeId: string };
 type StoredClaim = Claim & { order: number };
+type TestAssertion = { name: string; status: string };
+
+function decodeXml(value: string) {
+  return value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+}
+function parseXunitAssertions(xml: string): TestAssertion[] {
+  const assertions: TestAssertion[] = [];
+  for (const match of xml.matchAll(/<(testcase|test-case|test)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:testcase|test-case|test)>)/gi)) {
+    const nameMatch = match[2].match(/\bname\s*=\s*(["'])(.*?)\1/i);
+    if (!nameMatch) continue;
+    const body = match[3] ?? "";
+    const resultMatch = match[2].match(/\b(?:result|status)\s*=\s*(["'])(.*?)\1/i);
+    const result = resultMatch?.[2].toLowerCase();
+    assertions.push({ name: decodeXml(nameMatch[2]), status: /<(?:failure|error)\b/i.test(body) || result === "fail" || result === "failed" || result === "error" ? "failed" : /<skipped\b/i.test(body) || result === "skip" || result === "skipped" || result === "notrun" ? "skipped" : "passed" });
+  }
+  return assertions;
+}
 
 export class StorageError extends Error { status = 400; }
 
@@ -42,6 +59,10 @@ export class ProjectStorage {
       if (error instanceof StorageError) throw error;
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
+    await this.initializeProject(projectPath, name);
+    return this.openProject(name);
+  }
+  private async initializeProject(projectPath: string, name: string) {
     const id = randomUUID();
     await mkdir(join(projectPath, "nodes"), { recursive: true });
     await mkdir(join(projectPath, "claims"), { recursive: true });
@@ -49,6 +70,16 @@ export class ProjectStorage {
     await mkdir(join(projectPath, "test-results"), { recursive: true });
     await this.atomic(join(projectPath, "specification.json"), JSON.stringify({ formatVersion: 1, rootNodeId: id }, null, 2));
     await this.writeNode(projectPath, { id, name, parentId: null });
+  }
+  async ensureProject(name: string): Promise<Project> {
+    const projectPath = this.safeProject(name);
+    try {
+      const entries = await readdir(projectPath);
+      if (entries.length === 0) await this.initializeProject(projectPath, name);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      await this.initializeProject(projectPath, name);
+    }
     return this.openProject(name);
   }
   private async readManifest(path: string): Promise<Manifest> {
@@ -174,8 +205,10 @@ export class ProjectStorage {
   async saveTestResults(project: string, nodeId: string, file: { buffer: Buffer; mimetype: string; originalname: string }) {
     const path = this.safeProject(project); const manifest = await this.readManifest(path);
     if (nodeId !== manifest.rootNodeId) throw new StorageError("Test results can only be attached to the top-level node");
-    if (file.mimetype !== "application/json" && file.mimetype !== "text/json" && file.mimetype !== "text/plain") throw new StorageError("Test results must be a JSON file");
-    try { JSON.parse(file.buffer.toString("utf8")); } catch { throw new StorageError("Test results file is not valid JSON"); }
+    const isXml = /\.xml$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml";
+    if (!isXml && file.mimetype !== "application/json" && file.mimetype !== "text/json" && file.mimetype !== "text/plain") throw new StorageError("Test results must be a JSON or XUnit XML file");
+    if (isXml) { if (!/^\s*</.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid XML"); }
+    else { try { JSON.parse(file.buffer.toString("utf8")); } catch { throw new StorageError("Test results file is not valid JSON"); } }
     const id = randomUUID(); const fileName = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_") || "test-results.json";
     await mkdir(join(path, "test-results"), { recursive: true });
     await this.atomic(join(path, "test-results", `${id}__${fileName}`), file.buffer.toString("utf8"));
@@ -194,8 +227,10 @@ export class ProjectStorage {
     try {
       for (const file of await readdir(resultsPath)) {
         if (!/^([0-9a-f-]{36})__(.+)$/.test(file)) continue;
+        const raw = await readFile(join(resultsPath, file), "utf8");
+        if (/\.xml$/i.test(file)) { assertions.push(...parseXunitAssertions(raw)); continue; }
         let report: { testResults?: { assertionResults?: { fullName?: string; title?: string; status?: string }[] }[] };
-        try { report = JSON.parse(await readFile(join(resultsPath, file), "utf8")); } catch { throw new StorageError(`Test results file ${file} is not valid JSON`); }
+        try { report = JSON.parse(raw); } catch { throw new StorageError(`Test results file ${file} is not valid JSON`); }
         report.testResults?.forEach((suite) => suite.assertionResults?.forEach((assertion) => assertions.push({ name: assertion.fullName ?? assertion.title ?? "", status: assertion.status ?? "" })));
       }
     } catch (error) { if (error instanceof StorageError) throw error; if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }

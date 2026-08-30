@@ -4,7 +4,7 @@ import { ProjectStorage, StorageError } from "./storage.ts";
 import { resolveStartupConfiguration } from "./startup.ts";
 
 const app = express();
-const startup = resolveStartupConfiguration(process.argv.slice(2), process.env.WORKSPACE_ROOT);
+const startup = resolveStartupConfiguration(process.argv.slice(2), process.env.WORKSPACE_ROOT, process.env.SYSTEM_SPECIFICATION_TOOL_PROJECT);
 const storage = new ProjectStorage(startup.workspaceRoot);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 app.use(express.json({ limit: "1mb" }));
@@ -32,4 +32,8 @@ app.post("/api/projects/:project/nodes/:nodeId/test-results", upload.single("tes
 app.delete("/api/projects/:project/nodes/:nodeId/test-results/:id", (req, res) => send(res, () => storage.deleteTestResults(req.params.project, req.params.nodeId, req.params.id)));
 app.post("/api/projects/:project/verify", (req, res) => send(res, () => storage.verify(req.params.project)));
 app.use("/projects", express.static(startup.workspaceRoot));
+if (startup.initialProject) {
+  console.log(`Loading project: ${startup.initialProjectPath}`);
+  await storage.ensureProject(startup.initialProject);
+}
 app.listen(process.env.PORT ?? 3001, () => console.log("System Specification Tool API listening"));

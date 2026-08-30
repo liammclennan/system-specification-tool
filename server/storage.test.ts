@@ -25,6 +25,13 @@ describe("ProjectStorage", () => {
     const store = await fixture(); await store.createProject("system");
     await expect(store.createProject("system")).rejects.toBeInstanceOf(StorageError);
   });
+  it("initializes an existing empty directory as a project", async () => {
+    const storeRoot = await mkdtemp(join(tmpdir(), "spec-tool-")); roots.push(storeRoot); const root = storeRoot;
+    const emptyPath = join(root, "empty-project");
+    const { mkdir } = await import("node:fs/promises"); await mkdir(emptyPath);
+    const store = new ProjectStorage(root); const project = await store.ensureProject("empty-project");
+    expect(project.tree.name).toBe("empty-project");
+  });
   it("persists claim ordering within a node", async () => {
     const store = await fixture(); let project = await store.createProject("system");
     project = await store.createClaim("system", project.rootNodeId, "First");
@@ -72,6 +79,23 @@ describe("ProjectStorage", () => {
     const verified = await store.verify("system");
     expect(verified.tree.claims[0].verification).toBe("verified");
     expect(verified.tree.verification).toBe("verified");
+  });
+  it("verifies claims from XUnit XML testcase names", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "The XML-tested service works.");
+    const claim = project.tree.claims[0];
+    const xml = `<testsuites><testsuite name="unit"><testcase name="service ${claim.shortId} passes"/><testcase name="service ${claim.shortId} failure"><failure message="broken"/></testcase></testsuite>`;
+    await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(xml), mimetype: "application/xml", originalname: "xunit_test_result.xml" });
+    const verified = await store.verify("system");
+    expect(verified.tree.claims[0].verification).toBe("failed");
+  });
+  it("accepts XUnit test elements with result attributes", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "The test runner works.");
+    const claim = project.tree.claims[0];
+    const xml = `<assemblies><assembly><collection><test name="runner ${claim.shortId}" result="Pass"/><test name="runner ${claim.shortId} failure" result="Fail"/></collection></assembly></assemblies>`;
+    await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(xml), mimetype: "text/xml", originalname: "xunit_test_result.xml" });
+    expect((await store.verify("system")).tree.claims[0].verification).toBe("failed");
   });
   it("requires every sub-node to be verified before verifying its parent", async () => {
     const store = await fixture(); let project = await store.createProject("system");

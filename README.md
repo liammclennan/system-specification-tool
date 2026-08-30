@@ -13,3 +13,37 @@ The server side is a node.js web application written in Typescript. Data persist
 ## Specification
 
 System Specification Tool is specified in the same style as is intended to be created with System Specification Tool. The levels of the specification hierarchy are represented by markdown headings, and claims are bullet list items. The specification is in `specification.md`.
+
+## Usage
+
+Install dependencies with `npm install`, then start the application in development mode:
+
+```sh
+npm run dev
+```
+
+The application treats the selected project directory as the specification itself. If that directory is empty, it is initialized with a root node. Existing files must contain a valid specification.
+
+To open a project directly, use the command-line argument:
+
+```sh
+npx system-specification-tool -- --project=/path/to/project
+```
+
+The path may be absolute or relative to the directory where the command is run. If `--project` is omitted, set `SYSTEM_SPECIFICATION_TOOL_PROJECT` or the current directory is used:
+
+```sh
+SYSTEM_SPECIFICATION_TOOL_PROJECT=./my-specification npm run dev
+```
+
+For local development before publishing, use `npm link` and then run `system-specification-tool`, or run `node bin/system-specification-tool.mjs` directly.
+
+Test-result JSON and XUnit XML files can be uploaded on the top-level node. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
+
+Run the test suite with:
+
+```sh
+npm test
+```
+
+This also writes a machine-readable report to `test-results.json`.
