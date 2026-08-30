@@ -97,6 +97,22 @@ describe("ProjectStorage", () => {
     await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(xml), mimetype: "text/xml", originalname: "xunit_test_result.xml" });
     expect((await store.verify("system")).tree.claims[0].verification).toBe("failed");
   });
+  it("verifies claims from MSTest TRX UnitTestResult entries", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "The MSTest service works.");
+    const claim = project.tree.claims[0];
+    const trx = `<TestRun><Results><UnitTestResult testName="service ${claim.shortId}" outcome="Passed"/><UnitTestResult testName="other ${claim.shortId}" outcome="Failed"/></Results></TestRun>`;
+    await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(trx), mimetype: "application/xml", originalname: "xunit_test_result.trx" });
+    expect((await store.verify("system")).tree.claims[0].verification).toBe("failed");
+  });
+  it("verifies claims from TAP ok and not ok lines", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "The TAP service works.");
+    const claim = project.tree.claims[0];
+    const tap = `TAP version 13\n1..2\nok 1 - service ${claim.shortId}\nnot ok 2 - regression ${claim.shortId}\n`;
+    await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(tap), mimetype: "text/plain", originalname: "test.tap" });
+    expect((await store.verify("system")).tree.claims[0].verification).toBe("failed");
+  });
   it("requires every sub-node to be verified before verifying its parent", async () => {
     const store = await fixture(); let project = await store.createProject("system");
     project = await store.createNode("system", project.rootNodeId, "Child");

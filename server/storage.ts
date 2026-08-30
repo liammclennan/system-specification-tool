@@ -23,6 +23,28 @@ function parseXunitAssertions(xml: string): TestAssertion[] {
   }
   return assertions;
 }
+function parseTrxAssertions(xml: string): TestAssertion[] {
+  const assertions: TestAssertion[] = [];
+  for (const match of xml.matchAll(/<UnitTestResult\b([^>]*?)(?:\/>|>([\s\S]*?)<\/UnitTestResult>)/gi)) {
+    const nameMatch = match[1].match(/\btestName\s*=\s*(["'])(.*?)\1/i);
+    const outcomeMatch = match[1].match(/\boutcome\s*=\s*(["'])(.*?)\1/i);
+    if (!nameMatch) continue;
+    const outcome = outcomeMatch?.[2].toLowerCase();
+    assertions.push({ name: decodeXml(nameMatch[2]), status: outcome === "passed" ? "passed" : ["failed", "error", "timeout", "aborted"].includes(outcome ?? "") ? "failed" : "skipped" });
+  }
+  return assertions;
+}
+function parseTapAssertions(tap: string): TestAssertion[] {
+  const assertions: TestAssertion[] = [];
+  for (const line of tap.split(/\r?\n/)) {
+    const match = line.trim().match(/^(not ok|ok)\b(?:\s+\d+)?(?:\s*-\s*)?(.*)$/i);
+    if (!match) continue;
+    const name = match[2].replace(/\s+#\s*(?:skip|todo)\b.*$/i, "").trim();
+    const directive = match[2].match(/#\s*(skip|todo)\b/i);
+    assertions.push({ name, status: directive ? "skipped" : match[1].toLowerCase() === "ok" ? "passed" : "failed" });
+  }
+  return assertions;
+}
 
 export class StorageError extends Error { status = 400; }
 
@@ -206,9 +228,11 @@ export class ProjectStorage {
   async saveTestResults(project: string, nodeId: string, file: { buffer: Buffer; mimetype: string; originalname: string }) {
     const path = this.safeProject(project); const manifest = await this.readManifest(path);
     if (nodeId !== manifest.rootNodeId) throw new StorageError("Test results can only be attached to the top-level node");
-    const isXml = /\.xml$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml";
-    if (!isXml && file.mimetype !== "application/json" && file.mimetype !== "text/json" && file.mimetype !== "text/plain") throw new StorageError("Test results must be a JSON or XUnit XML file");
+    const isXml = /\.(?:xml|trx)$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml";
+    const isTap = /\.tap$/i.test(file.originalname);
+    if (!isXml && !isTap && file.mimetype !== "application/json" && file.mimetype !== "text/json" && file.mimetype !== "text/plain") throw new StorageError("Test results must be a JSON, XUnit XML, MSTest TRX, or TAP file");
     if (isXml) { if (!/^\s*</.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid XML"); }
+    else if (isTap) { if (!/^(?:\s*TAP version\b|\s*(?:not )?ok\b|\s*1\.\.\d+)/im.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid TAP"); }
     else { try { JSON.parse(file.buffer.toString("utf8")); } catch { throw new StorageError("Test results file is not valid JSON"); } }
     const id = randomUUID(); const fileName = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_") || "test-results.json";
     await mkdir(join(path, "test-results"), { recursive: true });
@@ -229,6 +253,8 @@ export class ProjectStorage {
       for (const file of await readdir(resultsPath)) {
         if (!/^([0-9a-f-]{36})__(.+)$/.test(file)) continue;
         const raw = await readFile(join(resultsPath, file), "utf8");
+        if (/\.trx$/i.test(file)) { assertions.push(...parseTrxAssertions(raw)); continue; }
+        if (/\.tap$/i.test(file)) { assertions.push(...parseTapAssertions(raw)); continue; }
         if (/\.xml$/i.test(file)) { assertions.push(...parseXunitAssertions(raw)); continue; }
         let report: { testResults?: { assertionResults?: { fullName?: string; title?: string; status?: string }[] }[] };
         try { report = JSON.parse(raw); } catch { throw new StorageError(`Test results file ${file} is not valid JSON`); }
