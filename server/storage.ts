@@ -135,10 +135,11 @@ export class ProjectStorage {
       const nodeClaims = claims.filter((claim) => claim.nodeId === node.id).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
       const nested = await Promise.all((children.get(node.id) ?? []).sort((a, b) => a.name.localeCompare(b.name)).map((child) => build(child, nextTrail)));
       const directClaimCount = nodeClaims.length;
+      const verifiedClaimCount = nodeClaims.filter((claim) => claim.verification === "verified").length + nested.reduce((sum, child) => sum + child.verifiedClaimCount, 0);
       const verification: VerificationStatus = nodeClaims.some((claim) => claim.verification === "failed") || nested.some((child) => child.verification === "failed") ? "failed" : nodeClaims.every((claim) => claim.verification === "verified") && nested.every((child) => child.verification === "verified") ? "verified" : "unverified";
       return { id: node.id, shortId: nodeShortIds.get(node.id)!, name: node.name, parentId: node.parentId,
         content: await readFile(join(path, "nodes", `${node.id}.md`), "utf8"), claims: nodeClaims, children: nested,
-        directClaimCount, recursiveClaimCount: directClaimCount + nested.reduce((sum, child) => sum + child.recursiveClaimCount, 0), verification };
+        directClaimCount, recursiveClaimCount: directClaimCount + nested.reduce((sum, child) => sum + child.recursiveClaimCount, 0), verifiedClaimCount, verification };
     };
     const resultsPath = join(path, "test-results");
     let testResults: TestResultsFile[] = [];

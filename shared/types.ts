@@ -18,6 +18,7 @@ export interface NodeRecord {
   children: NodeRecord[];
   directClaimCount: number;
   recursiveClaimCount: number;
+  verifiedClaimCount: number;
   verification: VerificationStatus;
 }
 
