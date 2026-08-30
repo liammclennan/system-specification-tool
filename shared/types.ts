@@ -27,10 +27,7 @@ export interface Project {
   name: string;
   rootNodeId: string;
   tree: NodeRecord;
+  /** @deprecated retained for persisted legacy projects; uploads are no longer exposed by the UI/API. */
   testResults: TestResultsFile[];
 }
-
-export interface TestResultsFile {
-  id: string;
-  fileName: string;
-}
+export interface TestResultsFile { id: string; fileName: string; }

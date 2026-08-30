@@ -109,7 +109,6 @@ export class ProjectStorage {
     await mkdir(join(projectPath, "nodes"), { recursive: true });
     await mkdir(join(projectPath, "claims"), { recursive: true });
     await mkdir(join(projectPath, "assets"), { recursive: true });
-    await mkdir(join(projectPath, "test-results"), { recursive: true });
     await this.atomic(join(projectPath, "specification.json"), JSON.stringify({ formatVersion: 1, rootNodeId: id }, null, 2));
     await this.writeNode(projectPath, { id, name, parentId: null });
   }
@@ -183,13 +182,8 @@ export class ProjectStorage {
         content: await readFile(join(path, "nodes", `${node.id}.md`), "utf8"), claims: nodeClaims, children: nested,
         directClaimCount, recursiveClaimCount: directClaimCount + nested.reduce((sum, child) => sum + child.recursiveClaimCount, 0), verifiedClaimCount, verification };
     };
-    const resultsPath = join(path, "test-results");
     let testResults: TestResultsFile[] = [];
-    try {
-      testResults = (await readdir(resultsPath)).flatMap((file) => {
-        const match = file.match(/^([0-9a-f-]{36})__(.+)$/); return match ? [{ id: match[1], fileName: match[2] }] : [];
-      }).sort((a, b) => a.fileName.localeCompare(b.fileName));
-    } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    try { testResults = (await readdir(join(path, "test-results"))).flatMap((file) => { const match = file.match(/^([0-9a-f-]{36})__(.+)$/); return match ? [{ id: match[1], fileName: match[2] }] : []; }); } catch { /* optional legacy directory */ }
     return { id: basename(path), name: basename(path), rootNodeId: manifest.rootNodeId, tree: await build(nodes.get(manifest.rootNodeId)!), testResults };
   }
   async createNode(project: string, parentId: string, name: string) {
@@ -245,38 +239,26 @@ export class ProjectStorage {
     const extension = extname(file.originalname).replace(/[^.a-zA-Z0-9]/g, "") || ".img"; const id = randomUUID();
     await writeFile(join(path, "assets", `${id}${extension}`), file.buffer); return `../assets/${id}${extension}`;
   }
+  /** Legacy persistence helper; test-result uploads are intentionally not routed by the application. */
   async saveTestResults(project: string, nodeId: string, file: { buffer: Buffer; mimetype: string; originalname: string }) {
     const path = this.safeProject(project); const manifest = await this.readManifest(path);
     if (nodeId !== manifest.rootNodeId) throw new StorageError("Test results can only be attached to the top-level node");
-    const isXml = /\.(?:xml|trx|junit)$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml" || file.mimetype === "application/junit+xml";
-    const isTap = /\.tap$/i.test(file.originalname);
-    const isCargo = /\.(?:txt|log)$/i.test(file.originalname) && /^\s*test\s+.+?\s+\.\.\.\s+(?:ok|FAILED|ignored)\s*$/im.test(file.buffer.toString("utf8"));
-    const isGo = /\.(?:jsonl|ndjson)$/i.test(file.originalname) || parseGoTestAssertions(file.buffer.toString("utf8")).length > 0;
-    if (!isXml && !isTap && !isCargo && !isGo && file.mimetype !== "application/json" && file.mimetype !== "text/json") throw new StorageError("Test results must be a JSON, XUnit XML, MSTest TRX, TAP, Cargo test, or Go test file");
-    if (isXml) { if (!/^\s*</.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid XML"); }
-    else if (isTap) { if (!/^(?:\s*TAP version\b|\s*(?:not )?ok\b|\s*1\.\.\d+)/im.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid TAP"); }
-    else if (isCargo) { /* Captured Cargo output is validated by its test-result line format. */ }
-    else if (isGo) { /* Go test JSON-lines events were recognized above. */ }
-    else { try { JSON.parse(file.buffer.toString("utf8")); } catch { throw new StorageError("Test results file is not valid JSON"); } }
-    const id = randomUUID(); const fileName = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_") || "test-results.json";
-    await mkdir(join(path, "test-results"), { recursive: true });
-    await this.atomic(join(path, "test-results", `${id}__${fileName}`), file.buffer.toString("utf8"));
-    return this.openProject(project);
+    await mkdir(join(path, "test-results"), { recursive: true }); const id = randomUUID(); const name = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
+    await this.atomic(join(path, "test-results", `${id}__${name}`), file.buffer.toString("utf8")); return this.openProject(project);
   }
   async deleteTestResults(project: string, nodeId: string, id: string) {
-    const path = this.safeProject(project); const manifest = await this.readManifest(path);
-    if (nodeId !== manifest.rootNodeId) throw new StorageError("Test results can only be managed from the top-level node");
-    const files = await readdir(join(path, "test-results")); const file = files.find((entry) => entry.startsWith(`${id}__`));
-    if (!file) throw new StorageError("Test results file was not found");
-    await unlink(join(path, "test-results", file)); return this.openProject(project);
+    const path = this.safeProject(project); const files = await readdir(join(path, "test-results")); const file = files.find((entry) => entry.startsWith(`${id}__`));
+    if (nodeId !== (await this.readManifest(path)).rootNodeId || !file) throw new StorageError("Test results file was not found"); await unlink(join(path, "test-results", file)); return this.openProject(project);
   }
-  async verify(project: string) {
-    const path = this.safeProject(project); const loaded = await this.load(path); const resultsPath = join(path, "test-results");
+  async verify(project: string, resultsPath = join(this.safeProject(project), "test-results")) {
+    const path = this.safeProject(project); const loaded = await this.load(path); const files: string[] = [];
+    const collect = async (candidate: string) => { let info; try { info = await stat(candidate); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; } if (info.isFile()) files.push(candidate); else if (info.isDirectory()) for (const entry of await readdir(candidate, { withFileTypes: true })) await collect(join(candidate, entry.name)); };
+    await collect(resolve(resultsPath));
     const assertions: { name: string; status: string }[] = [];
     try {
-      for (const file of await readdir(resultsPath)) {
-        if (!/^([0-9a-f-]{36})__(.+)$/.test(file)) continue;
-        const raw = await readFile(join(resultsPath, file), "utf8");
+      for (const file of files) {
+        if (!/\.(?:json|jsonl|ndjson|xml|junit|trx|tap|txt|log)$/i.test(file)) continue;
+        const raw = await readFile(file, "utf8");
         if (/\.trx$/i.test(file)) { assertions.push(...parseTrxAssertions(raw)); continue; }
         if (/\.tap$/i.test(file)) { assertions.push(...parseTapAssertions(raw)); continue; }
         if (/\.(?:txt|log)$/i.test(file)) { assertions.push(...parseCargoAssertions(raw)); continue; }

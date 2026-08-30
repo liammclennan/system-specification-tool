@@ -29,18 +29,20 @@ The application treats the selected project directory as the specification itsel
 To open a project directly, use the command-line argument:
 
 ```sh
-npx system-specification-tool -- --project=/path/to/project
+npx system-specification-tool -- --project=/path/to/project --test-results=/path/to/test-results
 ```
+
+`--test-results=/path/to/test-results` is required (or set `SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS`). It may point to a result file or a directory containing result files. Verification runs automatically at startup and can be run again with **Verify**; result files are read in place and are not uploaded or copied into the project.
 
 The path may be absolute or relative to the directory where the command is run. If `--project` is omitted, set `SYSTEM_SPECIFICATION_TOOL_PROJECT` or the current directory is used:
 
 ```sh
-SYSTEM_SPECIFICATION_TOOL_PROJECT=./my-specification npm run dev
+SYSTEM_SPECIFICATION_TOOL_PROJECT=./my-specification SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS=./test-results npm run dev
 ```
 
 For local development before publishing, use `npm link` and then run `system-specification-tool`, or run `node bin/system-specification-tool.mjs` directly.
 
-Test-result JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo test output, and Go `test -json` files can be uploaded on the top-level node. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
+Test-result JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo test output, and Go `test -json` files are read from the configured test-results path. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
 
 Run the test suite with:
 

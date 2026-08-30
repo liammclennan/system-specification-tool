@@ -21,11 +21,5 @@ export const api = {
     const response = await fetch(`/api/projects/${encodeURIComponent(project)}/nodes/${nodeId}/assets`, { method: "POST", body: data });
     if (!response.ok) throw new Error((await response.json()).error ?? "Upload failed"); return response.json() as Promise<string>;
   },
-  async uploadTestResults(project: string, nodeId: string, file: File) {
-    const data = new FormData(); data.append("testResults", file);
-    const response = await fetch(`/api/projects/${encodeURIComponent(project)}/nodes/${nodeId}/test-results`, { method: "POST", body: data });
-    if (!response.ok) throw new Error((await response.json()).error ?? "Upload failed"); return response.json() as Promise<Project>;
-  },
-  deleteTestResults: (project: string, nodeId: string, id: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${nodeId}/test-results/${id}`, { method: "DELETE" })
-  ,verify: (project: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/verify`, { method: "POST" })
+  verify: (project: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/verify`, { method: "POST" })
 };

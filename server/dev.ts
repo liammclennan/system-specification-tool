@@ -1,10 +1,18 @@
 import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { HELP_TEXT, isHelpRequested, resolveStartupConfiguration } from "./startup.ts";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const executable = (name: string) => join(packageRoot, "node_modules", ".bin", name);
 const projectArgument = process.argv.slice(2);
+if (isHelpRequested(projectArgument)) { console.log(HELP_TEXT); process.exit(0); }
+try {
+  resolveStartupConfiguration(projectArgument, process.env.WORKSPACE_ROOT, process.env.SYSTEM_SPECIFICATION_TOOL_PROJECT, process.cwd(), process.env.SYSTEM_SPECIFICATION_TOOL_PORT, process.env.SYSTEM_SPECIFICATION_TOOL_API_PORT, process.env.SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS);
+} catch (error) {
+  console.error(`Error: ${(error as Error).message}\n\n${HELP_TEXT}`);
+  process.exit(1);
+}
 const portArgument = projectArgument.find((arg) => arg.startsWith("--port="))?.slice("--port=".length) ?? (() => { const index = projectArgument.indexOf("--port"); return index >= 0 ? projectArgument[index + 1] : undefined; })();
 const server = spawn(executable("tsx"), ["watch", join(packageRoot, "server/index.ts"), "--", ...projectArgument], { cwd: process.cwd(), stdio: "inherit" });
 const frontendPort = portArgument ?? process.env.SYSTEM_SPECIFICATION_TOOL_PORT;

@@ -20,7 +20,7 @@
     "dev:client": "vite",
     "build": "tsc --noEmit && vite build",
     "start": "tsx server/index.ts",
-    "test": "vitest run --reporter=default --reporter=json --outputFile=test-results.json"
+    "test": "vitest run --reporter=default --reporter=json --outputFile=test-results/test-results.json"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
