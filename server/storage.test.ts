@@ -121,6 +121,14 @@ describe("ProjectStorage", () => {
     await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(output), mimetype: "text/plain", originalname: "cargo_test_result.txt" });
     expect((await store.verify("system")).tree.claims[0].verification).toBe("verified");
   });
+  it("verifies claims from Go test JSON-lines output", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "The Go service works.");
+    const claim = project.tree.claims[0];
+    const output = `${JSON.stringify({ Action: "run", Test: `TestService_${claim.shortId}` })}\n${JSON.stringify({ Action: "pass", Test: `TestService_${claim.shortId}` })}\n`;
+    await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(output), mimetype: "application/json", originalname: "go-test.jsonl" });
+    expect((await store.verify("system")).tree.claims[0].verification).toBe("verified");
+  });
   it("requires every sub-node to be verified before verifying its parent", async () => {
     const store = await fixture(); let project = await store.createProject("system");
     project = await store.createNode("system", project.rootNodeId, "Child");

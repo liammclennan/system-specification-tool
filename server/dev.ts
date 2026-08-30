@@ -13,6 +13,14 @@ const apiPort = apiPortArgument ?? process.env.SYSTEM_SPECIFICATION_TOOL_API_POR
 const client = spawn(executable("vite"), ["--config", join(packageRoot, "vite.config.ts"), ...(frontendPort ? ["--port", frontendPort] : [])], { cwd: packageRoot, stdio: "inherit", env: { ...process.env, API_PORT: apiPort } });
 const children = [server, client];
 
+const browserPort = frontendPort ?? "5173";
+const browserUrl = `http://localhost:${browserPort}/`;
+setTimeout(() => {
+  if (process.platform === "darwin") spawn("open", [browserUrl], { detached: true, stdio: "ignore" }).unref();
+  else if (process.platform === "win32") spawn("cmd", ["/c", "start", "", browserUrl], { detached: true, stdio: "ignore" }).unref();
+  else spawn("xdg-open", [browserUrl], { detached: true, stdio: "ignore" }).unref();
+}, 750);
+
 function stop(exitCode = 0) {
   children.forEach((child) => { if (!child.killed) child.kill("SIGTERM"); });
   process.exit(exitCode);

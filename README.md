@@ -22,6 +22,8 @@ Install dependencies with `npm install`, then start the application in developme
 npm run dev
 ```
 
+Development startup automatically opens the application in the default browser.
+
 The application treats the selected project directory as the specification itself. If that directory is empty, it is initialized with a root node. Existing files must contain a valid specification.
 
 To open a project directly, use the command-line argument:
@@ -38,7 +40,7 @@ SYSTEM_SPECIFICATION_TOOL_PROJECT=./my-specification npm run dev
 
 For local development before publishing, use `npm link` and then run `system-specification-tool`, or run `node bin/system-specification-tool.mjs` directly.
 
-Test-result JSON, JUnit/XUnit XML, MSTest TRX, TAP, and captured Cargo test output files can be uploaded on the top-level node. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
+Test-result JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo test output, and Go `test -json` files can be uploaded on the top-level node. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
 
 Run the test suite with:
 

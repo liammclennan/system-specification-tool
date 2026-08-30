@@ -53,6 +53,18 @@ function parseCargoAssertions(output: string): TestAssertion[] {
   }
   return assertions;
 }
+function parseGoTestAssertions(output: string): TestAssertion[] {
+  const assertions: TestAssertion[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    try {
+      const event = JSON.parse(line) as { Action?: string; Test?: string };
+      if (!event.Test || !event.Action) continue;
+      const action = event.Action.toLowerCase();
+      if (["pass", "fail", "skip"].includes(action)) assertions.push({ name: event.Test, status: action === "pass" ? "passed" : action === "fail" ? "failed" : "skipped" });
+    } catch { /* Ignore non-event lines in JSON-lines output. */ }
+  }
+  return assertions;
+}
 
 export class StorageError extends Error { status = 400; }
 
@@ -239,10 +251,12 @@ export class ProjectStorage {
     const isXml = /\.(?:xml|trx|junit)$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml" || file.mimetype === "application/junit+xml";
     const isTap = /\.tap$/i.test(file.originalname);
     const isCargo = /\.(?:txt|log)$/i.test(file.originalname) && /^\s*test\s+.+?\s+\.\.\.\s+(?:ok|FAILED|ignored)\s*$/im.test(file.buffer.toString("utf8"));
-    if (!isXml && !isTap && !isCargo && file.mimetype !== "application/json" && file.mimetype !== "text/json") throw new StorageError("Test results must be a JSON, XUnit XML, MSTest TRX, TAP, or Cargo test file");
+    const isGo = /\.(?:jsonl|ndjson)$/i.test(file.originalname) || parseGoTestAssertions(file.buffer.toString("utf8")).length > 0;
+    if (!isXml && !isTap && !isCargo && !isGo && file.mimetype !== "application/json" && file.mimetype !== "text/json") throw new StorageError("Test results must be a JSON, XUnit XML, MSTest TRX, TAP, Cargo test, or Go test file");
     if (isXml) { if (!/^\s*</.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid XML"); }
     else if (isTap) { if (!/^(?:\s*TAP version\b|\s*(?:not )?ok\b|\s*1\.\.\d+)/im.test(file.buffer.toString("utf8"))) throw new StorageError("Test results file is not valid TAP"); }
     else if (isCargo) { /* Captured Cargo output is validated by its test-result line format. */ }
+    else if (isGo) { /* Go test JSON-lines events were recognized above. */ }
     else { try { JSON.parse(file.buffer.toString("utf8")); } catch { throw new StorageError("Test results file is not valid JSON"); } }
     const id = randomUUID(); const fileName = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_") || "test-results.json";
     await mkdir(join(path, "test-results"), { recursive: true });
@@ -268,7 +282,11 @@ export class ProjectStorage {
         if (/\.(?:txt|log)$/i.test(file)) { assertions.push(...parseCargoAssertions(raw)); continue; }
         if (/\.(?:xml|junit)$/i.test(file)) { assertions.push(...parseXunitAssertions(raw)); continue; }
         let report: { testResults?: { assertionResults?: { fullName?: string; title?: string; status?: string }[] }[] };
-        try { report = JSON.parse(raw); } catch { throw new StorageError(`Test results file ${file} is not valid JSON`); }
+        try { report = JSON.parse(raw); } catch {
+          const goAssertions = parseGoTestAssertions(raw);
+          if (goAssertions.length > 0) { assertions.push(...goAssertions); continue; }
+          throw new StorageError(`Test results file ${file} is not valid JSON`);
+        }
         report.testResults?.forEach((suite) => suite.assertionResults?.forEach((assertion) => assertions.push({ name: assertion.fullName ?? assertion.title ?? "", status: assertion.status ?? "" })));
       }
     } catch (error) { if (error instanceof StorageError) throw error; if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
