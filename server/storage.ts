@@ -19,7 +19,7 @@ function parseXunitAssertions(xml: string): TestAssertion[] {
     const body = match[3] ?? "";
     const resultMatch = match[2].match(/\b(?:result|status)\s*=\s*(["'])(.*?)\1/i);
     const result = resultMatch?.[2].toLowerCase();
-    assertions.push({ name: decodeXml(nameMatch[2]), status: /<(?:failure|error)\b/i.test(body) || result === "fail" || result === "failed" || result === "error" ? "failed" : /<skipped\b/i.test(body) || result === "skip" || result === "skipped" || result === "notrun" ? "skipped" : "passed" });
+    assertions.push({ name: decodeXml(nameMatch[2]), status: /<(?:failure|error)\b/i.test(body) || result === "fail" || result === "failed" || result === "error" ? "failed" : /<skipped\b/i.test(body) || result === "skip" || result === "skipped" || result === "notrun" ? "skipped" : result === "pass" || result === "passed" || result === "success" ? "passed" : "passed" });
   }
   return assertions;
 }
@@ -236,7 +236,7 @@ export class ProjectStorage {
   async saveTestResults(project: string, nodeId: string, file: { buffer: Buffer; mimetype: string; originalname: string }) {
     const path = this.safeProject(project); const manifest = await this.readManifest(path);
     if (nodeId !== manifest.rootNodeId) throw new StorageError("Test results can only be attached to the top-level node");
-    const isXml = /\.(?:xml|trx)$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml";
+    const isXml = /\.(?:xml|trx|junit)$/i.test(file.originalname) || file.mimetype === "application/xml" || file.mimetype === "text/xml" || file.mimetype === "application/junit+xml";
     const isTap = /\.tap$/i.test(file.originalname);
     const isCargo = /\.(?:txt|log)$/i.test(file.originalname) && /^\s*test\s+.+?\s+\.\.\.\s+(?:ok|FAILED|ignored)\s*$/im.test(file.buffer.toString("utf8"));
     if (!isXml && !isTap && !isCargo && file.mimetype !== "application/json" && file.mimetype !== "text/json") throw new StorageError("Test results must be a JSON, XUnit XML, MSTest TRX, TAP, or Cargo test file");
@@ -266,7 +266,7 @@ export class ProjectStorage {
         if (/\.trx$/i.test(file)) { assertions.push(...parseTrxAssertions(raw)); continue; }
         if (/\.tap$/i.test(file)) { assertions.push(...parseTapAssertions(raw)); continue; }
         if (/\.(?:txt|log)$/i.test(file)) { assertions.push(...parseCargoAssertions(raw)); continue; }
-        if (/\.xml$/i.test(file)) { assertions.push(...parseXunitAssertions(raw)); continue; }
+        if (/\.(?:xml|junit)$/i.test(file)) { assertions.push(...parseXunitAssertions(raw)); continue; }
         let report: { testResults?: { assertionResults?: { fullName?: string; title?: string; status?: string }[] }[] };
         try { report = JSON.parse(raw); } catch { throw new StorageError(`Test results file ${file} is not valid JSON`); }
         report.testResults?.forEach((suite) => suite.assertionResults?.forEach((assertion) => assertions.push({ name: assertion.fullName ?? assertion.title ?? "", status: assertion.status ?? "" })));
