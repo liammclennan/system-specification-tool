@@ -138,6 +138,25 @@ export class ProjectStorage {
   private claimFile(claim: Pick<StoredClaim, "id" | "nodeId" | "text" | "order"> & { verification?: VerificationStatus; ignored?: boolean }) {
     return `---\nid: ${claim.id}\nnodeId: ${claim.nodeId}\norder: ${claim.order}\nverification: ${claim.verification ?? "unverified"}\nignored: ${claim.ignored ?? false}\n---\n${claim.text.trim()}\n`;
   }
+  private specificationMarkdown(project: Project, createdAt: Date) {
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const offsetMinutes = -createdAt.getTimezoneOffset();
+    const offsetSign = offsetMinutes >= 0 ? "+" : "-";
+    const absoluteOffset = Math.abs(offsetMinutes);
+    const localTimestamp = `${createdAt.getFullYear()}-${pad(createdAt.getMonth() + 1)}-${pad(createdAt.getDate())} ${pad(createdAt.getHours())}:${pad(createdAt.getMinutes())}:${pad(createdAt.getSeconds())} ${offsetSign}${pad(Math.floor(absoluteOffset / 60))}:${pad(absoluteOffset % 60)}`;
+    const renderNode = (node: NodeRecord, depth: number): string => {
+      const claims = node.claims.map((claim) => `- **${claim.ignored ? "ignored" : claim.verification}** — ${claim.text.replace(/\n/g, "\n  ")}`).join("\n");
+      const content = node.content.trim();
+      return [
+        `${"#".repeat(depth + 1)} ${node.name}`,
+        `**Verification status:** ${node.verification}`,
+        ...(claims ? [`**Claims:**\n\n${claims}`] : []),
+        ...(content ? [`**Content:**\n\n${content}`] : []),
+        ...node.children.map((child) => renderNode(child, depth + 1)),
+      ].join("\n\n");
+    };
+    return `Generated: ${localTimestamp}\n\n${renderNode(project.tree, 0)}\n`;
+  }
   private async load(projectPath: string) {
     const manifest = await this.readManifest(projectPath);
     const used = new Set<string>();
@@ -297,6 +316,8 @@ export class ProjectStorage {
       const verification: VerificationStatus = matches.some((assertion) => assertion.status === "failed") ? "failed" : matches.some((assertion) => assertion.status === "passed") ? "verified" : "unverified";
       return this.atomic(join(path, "claims", `${claim.id}.md`), this.claimFile({ ...claim, verification }));
     }));
-    return this.openProject(project);
+    const verifiedProject = await this.openProject(project);
+    await this.atomic(join(path, "specification.md"), this.specificationMarkdown(verifiedProject, new Date()));
+    return verifiedProject;
   }
 }

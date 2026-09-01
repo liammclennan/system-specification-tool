@@ -13,3 +13,15 @@
 .claim-actions { display: flex; gap: .35rem; margin: .6rem; }
 .claim-actions button { font-size: .8rem; padding: .25rem .4rem; }
 .tree-row.drop-target { outline: 2px solid #4a83d1; }
+.header-link { color: #1c3355; background: white; border: 1px solid #b9c5d8; border-radius: 5px; font-size: .8rem; padding: .25rem .4rem; text-decoration: none; }
+.header-link:hover { background: #edf3fb; }
+.rendered-specification { max-width: 920px; margin: 0 auto; padding: 2rem 3rem 5rem; font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; line-height: 1.65; }
+.rendered-specification > a { display: inline-block; margin-bottom: 1.5rem; color: #214c80; }
+.rendered-specification img { max-width: 100%; }
+.rendered-specification h1, .rendered-specification h2, .rendered-specification h3, .rendered-specification h4, .rendered-specification h5, .rendered-specification h6 { line-height: 1.2; margin: 1.5em 0 .6em; }
+.rendered-specification h1 { font-size: 2.6rem; }
+.rendered-specification h2 { font-size: 2.1rem; }
+.rendered-specification h3 { font-size: 1.7rem; }
+.rendered-specification h4 { font-size: 1.4rem; }
+.rendered-specification h5 { font-size: 1.2rem; }
+.rendered-specification h6 { font-size: 1rem; }

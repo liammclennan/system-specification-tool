@@ -106,6 +106,28 @@ describe("ProjectStorage", () => {
     project = await store.setClaimIgnored("system", claim.id, false);
     expect(project.tree.claims[0]).toMatchObject({ ignored: false, verification: "unverified" });
   });
+  it("writes a timestamped depth-first Markdown specification after verification", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.updateNode("system", project.rootNodeId, { content: "Root content." });
+    project = await store.createClaim("system", project.rootNodeId, "Root claim.");
+    project = await store.createNode("system", project.rootNodeId, "First child");
+    const firstChild = project.tree.children[0];
+    project = await store.updateNode("system", firstChild.id, { content: "First child content." });
+    project = await store.createNode("system", firstChild.id, "Grandchild");
+    project = await store.createNode("system", project.rootNodeId, "Second child");
+    await store.verify("system");
+    const markdown = await readFile(join(roots[0], "system", "specification.md"), "utf8");
+    expect(markdown).toMatch(/^Generated: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}\n\n# system\n/);
+    expect(markdown).toContain("**Verification status:** unverified");
+    expect(markdown).toContain("- **unverified** — Root claim.");
+    expect(markdown).toContain("**Content:**\n\nRoot content.");
+    expect(markdown.match(/\*\*Claims:\*\*/g)).toHaveLength(1);
+    expect(markdown).not.toContain("No claims");
+    expect(markdown.match(/\*\*Content:\*\*/g)).toHaveLength(2);
+    expect(markdown).not.toContain("No content");
+    const headings = [...markdown.matchAll(/^(#+) (.+)$/gm)].map((match) => `${match[1]} ${match[2]}`);
+    expect(headings).toEqual(["# system", "## First child", "### Grandchild", "## Second child"]);
+  });
   it("verifies claims from XUnit XML testcase names", async () => {
     const store = await fixture(); let project = await store.createProject("system");
     project = await store.createClaim("system", project.rootNodeId, "The XML-tested service works.");

@@ -36,6 +36,61 @@ const collisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   return pointerCollisions.length ? pointerCollisions : closestCenter(args);
 };
+const sidebarSizeKey = "system-specification-tool.sidebar-size";
+function loadSidebarSize() {
+  try {
+    const size = Number(localStorage.getItem(sidebarSizeKey));
+    return size >= 20 && size <= 60 ? size : 30;
+  } catch {
+    return 30;
+  }
+}
+function saveSidebarSize(size: number) {
+  try {
+    localStorage.setItem(sidebarSizeKey, String(size));
+  } catch {
+    // Continue with the in-memory layout when storage is unavailable.
+  }
+}
+function loadExpandedNodes(project: Project) {
+  try {
+    const stored = localStorage.getItem(`system-specification-tool.expanded.${project.name}`);
+    if (stored === null) return new Set([project.rootNodeId]);
+    const ids: unknown = JSON.parse(stored);
+    if (!Array.isArray(ids)) return new Set([project.rootNodeId]);
+    const validIds = new Set(allNodeIds(project.tree));
+    return new Set(ids.filter((id): id is string => typeof id === "string" && validIds.has(id)));
+  } catch {
+    return new Set([project.rootNodeId]);
+  }
+}
+function saveExpandedNodes(projectName: string, expanded: Set<string>) {
+  try {
+    localStorage.setItem(`system-specification-tool.expanded.${projectName}`, JSON.stringify([...expanded]));
+  } catch {
+    // Continue with the in-memory expansion state when storage is unavailable.
+  }
+}
+function RenderedSpecification({ projectName }: { projectName: string }) {
+  const [markdown, setMarkdown] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        await api.verify(projectName);
+        const response = await fetch(`/projects/${encodeURIComponent(projectName)}/specification.md`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Could not load the generated specification.");
+        const updatedMarkdown = await response.text();
+        if (active) setMarkdown(updatedMarkdown);
+      } catch (reason) {
+        if (active) setError((reason as Error).message);
+      }
+    })();
+    return () => { active = false; };
+  }, [projectName]);
+  return <main className="rendered-specification"><a href="/">← Back to application</a>{error ? <p className="error">{error}</p> : markdown ? <ReactMarkdown>{markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}</ReactMarkdown> : <p>Verifying and generating specification…</p>}</main>;
+}
 function TreeNode({
   node,
   selected,
@@ -418,17 +473,19 @@ function ClaimEditor({
     </div>
   );
 }
-export function App() {
+function WorkspaceApp() {
   const [projects, setProjects] = useState<string[]>([]);
   const [project, setProject] = useState<Project>();
   const [selected, setSelected] = useState("");
   const [expanded, setExpanded] = useState(new Set<string>());
   const [error, setError] = useState("");
+  const [sidebarSize] = useState(loadSidebarSize);
   const selectedNode = useMemo(
     () => project && findNode(project.tree, selected),
     [project, selected],
   );
   const refresh = (next: Project) => {
+    if (project?.name !== next.name) setExpanded(loadExpandedNodes(next));
     setProject(next);
     setProjects((old) => (old.includes(next.name) ? old : [...old, next.name]));
   };
@@ -450,9 +507,11 @@ export function App() {
   useEffect(() => {
     if (project) {
       setSelected((id) => id || project.rootNodeId);
-      setExpanded((ids) => (ids.size ? ids : new Set([project.rootNodeId])));
     }
   }, [project]);
+  useEffect(() => {
+    if (project) saveExpandedNodes(project.name, expanded);
+  }, [project?.name, expanded]);
   const open = async (name: string) => {
     try {
       refresh(await api.project(name));
@@ -536,11 +595,15 @@ export function App() {
   return (
     <div className="app">
       <DndContext collisionDetection={collisionDetection} onDragEnd={dragEnd}>
-        <PanelGroup direction="horizontal">
-          <Panel defaultSize={30} minSize={20} className="sidebar">
+        <PanelGroup
+          direction="horizontal"
+          onLayout={(sizes) => saveSidebarSize(sizes[0])}
+        >
+          <Panel defaultSize={sidebarSize} minSize={20} className="sidebar">
             <div className="project-header">
               <strong>{project.name}</strong>
               <div className="project-header-actions">
+                <a className="header-link" href={`/specification/${encodeURIComponent(project.name)}`}>Specification</a>
                 <button
                   onClick={() => setExpanded(new Set(allNodeIds(project.tree)))}
                 >
@@ -599,4 +662,12 @@ export function App() {
       )}
     </div>
   );
+}
+export function App() {
+  const match = window.location.pathname.match(/^\/specification\/([^/]+)\/?$/);
+  if (match) {
+    try { return <RenderedSpecification projectName={decodeURIComponent(match[1])} />; }
+    catch { return <main className="rendered-specification"><a href="/">← Back to application</a><p className="error">The specification URL is invalid.</p></main>; }
+  }
+  return <WorkspaceApp />;
 }

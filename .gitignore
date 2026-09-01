@@ -3,3 +3,4 @@ dist/
 projects/
 test-results/
 .DS_Store
+specification/System-Specification-Tool/specification.md
