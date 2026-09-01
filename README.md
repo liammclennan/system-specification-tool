@@ -1,5 +1,7 @@
 # System Specification Tool
 
+[![Test](https://github.com/liammclennan/system-specification-tool/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/liammclennan/system-specification-tool/actions/workflows/test.yml)
+
 ## CLI help
 
 ```sh
@@ -47,4 +49,4 @@ Supported formats are JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo tes
 
 ## Usage with AI agents
 
-Each time that the claims are verified `system-specification-tool` writes an AI agent friendly markdown specification (`specification.md`) into your project directory. 
+Each time that the claims are verified `system-specification-tool` writes an AI agent friendly markdown specification (`specification.md`) into your project directory.
