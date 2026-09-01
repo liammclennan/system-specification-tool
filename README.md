@@ -57,3 +57,9 @@ The API and frontend are served by one web server. The `--port` argument or `SYS
 ```sh
 npx system-specification-tool -- --port=4000
 ```
+
+For non-interactive verification, use `--print`. This regenerates `specification.md`, prints claim totals and details for failing or unverified claims, and does not start the web server. It exits with code 0 when every claim is verified or ignored, and code 1 otherwise:
+
+```sh
+npx system-specification-tool -- --project=/path/to/project --test-results=/path/to/test-results --print
+```

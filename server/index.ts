@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ProjectStorage, StorageError } from "./storage.ts";
+import { verificationReport } from "./report.ts";
 import { isHelpRequested, HELP_TEXT, resolveStartupConfiguration } from "./startup.ts";
 
 const app = express();
@@ -17,6 +18,12 @@ try {
   process.exit(1);
 }
 const storage = new ProjectStorage(startup.workspaceRoot);
+if (process.argv.slice(2).includes("--print")) {
+  await storage.ensureProject(startup.initialProject!);
+  const result = verificationReport(await storage.verify(startup.initialProject!, startup.testResultsPath));
+  process.stdout.write(result.output);
+  process.exit(result.exitCode);
+}
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 app.use(express.json({ limit: "1mb" }));
 const send = (res: express.Response, action: () => Promise<unknown>) => action().then((data) => res.json(data)).catch((error) => res.status(error instanceof StorageError ? error.status : 500).json({ error: error.message || "Unexpected server error" }));

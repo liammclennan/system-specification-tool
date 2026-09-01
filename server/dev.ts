@@ -14,12 +14,14 @@ try {
   process.exit(1);
 }
 const portArgument = projectArgument.find((arg) => arg.startsWith("--port="))?.slice("--port=".length) ?? (() => { const index = projectArgument.indexOf("--port"); return index >= 0 ? projectArgument[index + 1] : undefined; })();
-const server = spawn(executable("tsx"), ["watch", join(packageRoot, "server/index.ts"), "--", ...projectArgument], { cwd: process.cwd(), stdio: "inherit", env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_DEV: "true", SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED: "true" } });
+const printRequested = projectArgument.includes("--print");
+const serverArguments = printRequested ? [join(packageRoot, "server/index.ts"), ...projectArgument] : ["watch", join(packageRoot, "server/index.ts"), "--", ...projectArgument];
+const server = spawn(executable("tsx"), serverArguments, { cwd: process.cwd(), stdio: "inherit", env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_DEV: "true", SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED: "true" } });
 const frontendPort = portArgument ?? process.env.SYSTEM_SPECIFICATION_TOOL_PORT;
 
 const browserPort = frontendPort ?? "5173";
 const browserUrl = `http://localhost:${browserPort}/`;
-setTimeout(() => {
+if (!printRequested) setTimeout(() => {
   if (process.platform === "darwin") spawn("open", [browserUrl], { detached: true, stdio: "ignore" }).unref();
   else if (process.platform === "win32") spawn("cmd", ["/c", "start", "", browserUrl], { detached: true, stdio: "ignore" }).unref();
   else spawn("xdg-open", [browserUrl], { detached: true, stdio: "ignore" }).unref();

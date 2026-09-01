@@ -17,6 +17,7 @@ Options:
   --project <path>       Specification directory (defaults to the current directory)
   --test-results <path>  Test result file or directory (required unless the environment variable is set)
   --port <number>        Web server port (default: 5173)
+  --print                Verify, print a claim report, and exit without starting the server
   --help                 Show this help message
 
 Environment:
