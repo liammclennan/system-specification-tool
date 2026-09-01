@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { spawn } from "node:child_process";
+import { createServer as createHttpServer } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ProjectStorage, StorageError } from "./storage.ts";
@@ -47,9 +48,10 @@ app.post("/api/projects/:project/nodes/:nodeId/assets", upload.single("image"), 
 });
 app.post("/api/projects/:project/verify", (req, res) => send(res, () => storage.verify(req.params.project, startup.testResultsPath)));
 app.use("/projects", express.static(startup.workspaceRoot));
+const httpServer = createHttpServer(app);
 if (process.env.SYSTEM_SPECIFICATION_TOOL_DEV === "true") {
-  const { createServer } = await import("vite");
-  const vite = await createServer({ root: packageRoot, server: { middlewareMode: true }, appType: "spa" });
+  const { createServer: createViteServer } = await import("vite");
+  const vite = await createViteServer({ root: packageRoot, server: { middlewareMode: true, hmr: { server: httpServer } }, appType: "spa" });
   app.use(vite.middlewares);
 } else {
   const distribution = join(packageRoot, "dist");
@@ -61,7 +63,7 @@ if (startup.initialProject) {
   await storage.ensureProject(startup.initialProject);
   await storage.verify(startup.initialProject, startup.testResultsPath);
 }
-app.listen(startup.port, () => {
+httpServer.listen(startup.port, () => {
   const browserUrl = `http://localhost:${startup.port}/`;
   console.log(`System Specification Tool listening at ${browserUrl}`);
   if (process.env.SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED !== "true") {
