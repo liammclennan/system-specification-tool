@@ -29,7 +29,7 @@ export function isHelpRequested(args: string[]) {
 }
 
 /** A positional argument names one project directory to open on startup. */
-export function resolveStartupConfiguration(args: string[], _configuredWorkspace?: string, environmentProject?: string, callerDirectory = process.cwd(), configuredPort?: string, environmentTestResults?: string): StartupConfiguration {
+export function resolveStartupConfiguration(args: string[], environmentProject?: string, callerDirectory = process.cwd(), configuredPort?: string, environmentTestResults?: string): StartupConfiguration {
   const portArgument = args.find((arg) => arg.startsWith("--port="))?.slice("--port=".length) ?? (() => { const index = args.indexOf("--port"); return index >= 0 ? args[index + 1] : undefined; })();
   const port = Number(portArgument ?? configuredPort ?? 5173);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port must be an integer between 1 and 65535");

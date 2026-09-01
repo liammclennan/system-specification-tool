@@ -18,7 +18,8 @@
     "dev": "tsx server/dev.ts --",
     "build": "tsc --noEmit && vite build",
     "start": "tsx server/index.ts",
-    "test": "vitest run --reporter=default --reporter=json --outputFile=test/test-results/test-results.json"
+    "test": "vitest run --reporter=default --exclude=test/guess-demo-node --reporter=json --outputFile=test/test-results/test-results.json",
+    "self": "npm run dev -- --project ./specification/System-Specification-Tool --test-results ./test/test-results"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

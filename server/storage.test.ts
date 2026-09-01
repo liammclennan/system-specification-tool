@@ -40,6 +40,17 @@ describe("ProjectStorage", () => {
     await store.reorderClaims("system", project.rootNodeId, [second.id, first.id]);
     expect((await store.openProject("system")).tree.claims.map((claim) => claim.text)).toEqual(["Second", "First"]);
   });
+  it("moves a claim to another node and appends it after existing claims", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createNode("system", project.rootNodeId, "Destination");
+    const destination = project.tree.children[0];
+    project = await store.createClaim("system", destination.id, "Existing destination claim");
+    project = await store.createClaim("system", project.rootNodeId, "Claim to move");
+    const moving = project.tree.claims[0];
+    project = await store.moveClaim("system", moving.id, destination.id);
+    expect(project.tree.claims).toHaveLength(0);
+    expect(project.tree.children[0].claims.map((claim) => claim.text)).toEqual(["Existing destination claim", "Claim to move"]);
+  });
   it("stores a valid test-results file only for the root node", async () => {
     const store = await fixture(); let project = await store.createProject("system");
     const file = { buffer: Buffer.from('{"success":true}'), mimetype: "application/json", originalname: "unit-results.json" };
@@ -81,6 +92,19 @@ describe("ProjectStorage", () => {
     const verified = await store.verify("system");
     expect(verified.tree.claims[0].verification).toBe("verified");
     expect(verified.tree.verification).toBe("verified");
+  });
+  it("excludes ignored claims from verification", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "This claim is not currently applicable.");
+    const claim = project.tree.claims[0];
+    const report = { testResults: [{ assertionResults: [{ fullName: `failing test ${claim.shortId}`, status: "failed" }] }] };
+    await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(JSON.stringify(report)), mimetype: "application/json", originalname: "report.json" });
+    project = await store.setClaimIgnored("system", claim.id, true);
+    project = await store.verify("system");
+    expect(project.tree.claims[0]).toMatchObject({ ignored: true, verification: "unverified" });
+    expect(project.tree).toMatchObject({ verification: "verified", ignoredClaimCount: 1, failedClaimCount: 0, verifiedClaimCount: 0 });
+    project = await store.setClaimIgnored("system", claim.id, false);
+    expect(project.tree.claims[0]).toMatchObject({ ignored: false, verification: "unverified" });
   });
   it("verifies claims from XUnit XML testcase names", async () => {
     const store = await fixture(); let project = await store.createProject("system");

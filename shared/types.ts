@@ -6,6 +6,7 @@ export interface Claim {
   nodeId: string;
   text: string;
   verification: VerificationStatus;
+  ignored: boolean;
 }
 
 export interface NodeRecord {
@@ -20,6 +21,7 @@ export interface NodeRecord {
   recursiveClaimCount: number;
   verifiedClaimCount: number;
   failedClaimCount: number;
+  ignoredClaimCount: number;
   verification: VerificationStatus;
 }
 

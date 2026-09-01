@@ -14,6 +14,8 @@ export const api = {
   moveNode: (project: string, id: string, parentId: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${id}/move`, { method: "POST", body: JSON.stringify({ parentId }) }),
   createClaim: (project: string, nodeId: string, text: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims`, { method: "POST", body: JSON.stringify({ nodeId, text }) }),
   updateClaim: (project: string, id: string, text: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims/${id}`, { method: "PATCH", body: JSON.stringify({ text }) }),
+  setClaimIgnored: (project: string, id: string, ignored: boolean) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims/${id}/ignore`, { method: "POST", body: JSON.stringify({ ignored }) }),
+  moveClaim: (project: string, id: string, nodeId: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims/${id}/move`, { method: "POST", body: JSON.stringify({ nodeId }) }),
   reorderClaims: (project: string, nodeId: string, orderedIds: string[]) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${nodeId}/claims/reorder`, { method: "POST", body: JSON.stringify({ orderedIds }) }),
   deleteClaim: (project: string, id: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims/${id}`, { method: "DELETE" }),
   async upload(project: string, nodeId: string, file: File) {

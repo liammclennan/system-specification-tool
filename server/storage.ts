@@ -135,8 +135,8 @@ export class ProjectStorage {
     const contentPath = join(projectPath, "nodes", `${node.id}.md`);
     try { await stat(contentPath); } catch { await this.atomic(contentPath, ""); }
   }
-  private claimFile(claim: Pick<StoredClaim, "id" | "nodeId" | "text" | "order"> & { verification?: VerificationStatus }) {
-    return `---\nid: ${claim.id}\nnodeId: ${claim.nodeId}\norder: ${claim.order}\nverification: ${claim.verification ?? "unverified"}\n---\n${claim.text.trim()}\n`;
+  private claimFile(claim: Pick<StoredClaim, "id" | "nodeId" | "text" | "order"> & { verification?: VerificationStatus; ignored?: boolean }) {
+    return `---\nid: ${claim.id}\nnodeId: ${claim.nodeId}\norder: ${claim.order}\nverification: ${claim.verification ?? "unverified"}\nignored: ${claim.ignored ?? false}\n---\n${claim.text.trim()}\n`;
   }
   private async load(projectPath: string) {
     const manifest = await this.readManifest(projectPath);
@@ -154,9 +154,9 @@ export class ProjectStorage {
     const claims: StoredClaim[] = [];
     for (const file of (await readdir(join(projectPath, "claims"))).filter((entry) => entry.endsWith(".md"))) {
       const raw = await readFile(join(projectPath, "claims", file), "utf8");
-      const match = raw.match(/^---\nid: ([^\n]+)\nnodeId: ([^\n]+)\n(?:order: (\d+)\n)?(?:verification: (unverified|verified|failed)\n)?---\n([\s\S]*)$/);
+      const match = raw.match(/^---\nid: ([^\n]+)\nnodeId: ([^\n]+)\n(?:order: (\d+)\n)?(?:verification: (unverified|verified|failed)\n)?(?:ignored: (true|false)\n)?---\n([\s\S]*)$/);
       if (!match || !nodes.has(match[2])) throw new StorageError(`Invalid claim file: ${file}`);
-      claims.push({ id: match[1], nodeId: match[2], order: Number(match[3] ?? Number.MAX_SAFE_INTEGER), verification: (match[4] ?? "unverified") as VerificationStatus, text: match[5].trim(), shortId: "" });
+      claims.push({ id: match[1], nodeId: match[2], order: Number(match[3] ?? Number.MAX_SAFE_INTEGER), verification: (match[4] ?? "unverified") as VerificationStatus, ignored: match[5] === "true", text: match[6].trim(), shortId: "" });
     }
     const nodeShortIds = new Map([...nodes.keys()].map((id) => [id, this.short(id, used)]));
     claims.forEach((claim) => { claim.shortId = this.short(claim.id, used); });
@@ -178,10 +178,12 @@ export class ProjectStorage {
       const directClaimCount = nodeClaims.length;
       const verifiedClaimCount = nodeClaims.filter((claim) => claim.verification === "verified").length + nested.reduce((sum, child) => sum + child.verifiedClaimCount, 0);
       const failedClaimCount = nodeClaims.filter((claim) => claim.verification === "failed").length + nested.reduce((sum, child) => sum + child.failedClaimCount, 0);
-      const verification: VerificationStatus = nodeClaims.some((claim) => claim.verification === "failed") || nested.some((child) => child.verification === "failed") ? "failed" : nodeClaims.every((claim) => claim.verification === "verified") && nested.every((child) => child.verification === "verified") ? "verified" : "unverified";
+      const ignoredClaimCount = nodeClaims.filter((claim) => claim.ignored).length + nested.reduce((sum, child) => sum + child.ignoredClaimCount, 0);
+      const includedClaims = nodeClaims.filter((claim) => !claim.ignored);
+      const verification: VerificationStatus = includedClaims.some((claim) => claim.verification === "failed") || nested.some((child) => child.verification === "failed") ? "failed" : includedClaims.every((claim) => claim.verification === "verified") && nested.every((child) => child.verification === "verified") ? "verified" : "unverified";
       return { id: node.id, shortId: nodeShortIds.get(node.id)!, name: node.name, parentId: node.parentId,
         content: await readFile(join(path, "nodes", `${node.id}.md`), "utf8"), claims: nodeClaims, children: nested,
-        directClaimCount, recursiveClaimCount: directClaimCount + nested.reduce((sum, child) => sum + child.recursiveClaimCount, 0), verifiedClaimCount, failedClaimCount, verification };
+        directClaimCount, recursiveClaimCount: directClaimCount + nested.reduce((sum, child) => sum + child.recursiveClaimCount, 0), verifiedClaimCount, failedClaimCount, ignoredClaimCount, verification };
     };
     let testResults: TestResultsFile[] = [];
     try { testResults = (await readdir(join(path, "test-results"))).flatMap((file) => { const match = file.match(/^([0-9a-f-]{36})__(.+)$/); return match ? [{ id: match[1], fileName: match[2] }] : []; }); } catch { /* optional legacy directory */ }
@@ -218,6 +220,22 @@ export class ProjectStorage {
     const path = this.safeProject(project); const claim = (await this.load(path)).claims.find((item) => item.id === id);
     if (!claim) throw new StorageError("Claim was not found"); if (!text.trim()) throw new StorageError("Claim text is required");
     await this.atomic(join(path, "claims", `${id}.md`), this.claimFile({ ...claim, text })); return this.openProject(project);
+  }
+  async setClaimIgnored(project: string, id: string, ignored: boolean) {
+    const path = this.safeProject(project); const claim = (await this.load(path)).claims.find((item) => item.id === id);
+    if (!claim) throw new StorageError("Claim was not found");
+    await this.atomic(join(path, "claims", `${id}.md`), this.claimFile({ ...claim, ignored, verification: ignored ? "unverified" : claim.verification }));
+    return this.openProject(project);
+  }
+  async moveClaim(project: string, id: string, nodeId: string) {
+    const path = this.safeProject(project); const loaded = await this.load(path);
+    const claim = loaded.claims.find((item) => item.id === id);
+    if (!claim) throw new StorageError("Claim was not found");
+    if (!loaded.nodes.has(nodeId)) throw new StorageError("Node was not found");
+    if (claim.nodeId === nodeId) return this.openProject(project);
+    const order = Math.max(-1, ...loaded.claims.filter((item) => item.nodeId === nodeId).map((item) => item.order)) + 1;
+    await this.atomic(join(path, "claims", `${id}.md`), this.claimFile({ ...claim, nodeId, order }));
+    return this.openProject(project);
   }
   async reorderClaims(project: string, nodeId: string, orderedIds: string[]) {
     const path = this.safeProject(project); const loaded = await this.load(path);
@@ -274,6 +292,7 @@ export class ProjectStorage {
       }
     } catch (error) { if (error instanceof StorageError) throw error; if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     await Promise.all(loaded.claims.map((claim) => {
+      if (claim.ignored) return Promise.resolve();
       const matches = assertions.filter((assertion) => assertion.name.includes(claim.shortId));
       const verification: VerificationStatus = matches.some((assertion) => assertion.status === "failed") ? "failed" : matches.some((assertion) => assertion.status === "passed") ? "verified" : "unverified";
       return this.atomic(join(path, "claims", `${claim.id}.md`), this.claimFile({ ...claim, verification }));

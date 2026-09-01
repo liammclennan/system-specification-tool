@@ -1,5 +1,6 @@
 import express from "express";
 import multer from "multer";
+import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ProjectStorage, StorageError } from "./storage.ts";
@@ -10,7 +11,7 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 if (isHelpRequested(process.argv.slice(2))) { console.log(HELP_TEXT); process.exit(0); }
 let startup;
 try {
-  startup = resolveStartupConfiguration(process.argv.slice(2), process.env.WORKSPACE_ROOT, process.env.SYSTEM_SPECIFICATION_TOOL_PROJECT, process.cwd(), process.env.SYSTEM_SPECIFICATION_TOOL_PORT, process.env.SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS);
+  startup = resolveStartupConfiguration(process.argv.slice(2), process.env.SYSTEM_SPECIFICATION_TOOL_PROJECT, process.cwd(), process.env.SYSTEM_SPECIFICATION_TOOL_PORT, process.env.SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS);
 } catch (error) {
   console.error(`Error: ${(error as Error).message}\n\n${HELP_TEXT}`);
   process.exit(1);
@@ -29,6 +30,8 @@ app.patch("/api/projects/:project/nodes/:id", (req, res) => send(res, () => stor
 app.post("/api/projects/:project/nodes/:id/move", (req, res) => send(res, () => storage.moveNode(req.params.project, req.params.id, req.body.parentId)));
 app.post("/api/projects/:project/claims", (req, res) => send(res, () => storage.createClaim(req.params.project, req.body.nodeId, req.body.text)));
 app.patch("/api/projects/:project/claims/:id", (req, res) => send(res, () => storage.updateClaim(req.params.project, req.params.id, req.body.text)));
+app.post("/api/projects/:project/claims/:id/ignore", (req, res) => send(res, () => storage.setClaimIgnored(req.params.project, req.params.id, req.body.ignored === true)));
+app.post("/api/projects/:project/claims/:id/move", (req, res) => send(res, () => storage.moveClaim(req.params.project, req.params.id, req.body.nodeId)));
 app.post("/api/projects/:project/nodes/:nodeId/claims/reorder", (req, res) => send(res, () => storage.reorderClaims(req.params.project, req.params.nodeId, req.body.orderedIds)));
 app.delete("/api/projects/:project/claims/:id", (req, res) => send(res, () => storage.deleteClaim(req.params.project, req.params.id)));
 app.post("/api/projects/:project/nodes/:nodeId/assets", upload.single("image"), (req, res) => {
@@ -51,4 +54,14 @@ if (startup.initialProject) {
   await storage.ensureProject(startup.initialProject);
   await storage.verify(startup.initialProject, startup.testResultsPath);
 }
-app.listen(startup.port, () => console.log(`System Specification Tool listening at http://localhost:${startup.port}/`));
+app.listen(startup.port, () => {
+  const browserUrl = `http://localhost:${startup.port}/`;
+  console.log(`System Specification Tool listening at ${browserUrl}`);
+  if (process.env.SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED !== "true") {
+    const browser = process.platform === "darwin" ? spawn("open", [browserUrl], { detached: true, stdio: "ignore" })
+      : process.platform === "win32" ? spawn("cmd", ["/c", "start", "", browserUrl], { detached: true, stdio: "ignore" })
+      : spawn("xdg-open", [browserUrl], { detached: true, stdio: "ignore" });
+    browser.on("error", (error) => console.error(`Could not open the browser: ${error.message}`));
+    browser.unref();
+  }
+});
