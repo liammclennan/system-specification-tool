@@ -1,13 +1,16 @@
 import express from "express";
 import multer from "multer";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ProjectStorage, StorageError } from "./storage.ts";
 import { isHelpRequested, HELP_TEXT, resolveStartupConfiguration } from "./startup.ts";
 
 const app = express();
+const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 if (isHelpRequested(process.argv.slice(2))) { console.log(HELP_TEXT); process.exit(0); }
 let startup;
 try {
-  startup = resolveStartupConfiguration(process.argv.slice(2), process.env.WORKSPACE_ROOT, process.env.SYSTEM_SPECIFICATION_TOOL_PROJECT, process.cwd(), process.env.SYSTEM_SPECIFICATION_TOOL_PORT, process.env.SYSTEM_SPECIFICATION_TOOL_API_PORT, process.env.SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS);
+  startup = resolveStartupConfiguration(process.argv.slice(2), process.env.WORKSPACE_ROOT, process.env.SYSTEM_SPECIFICATION_TOOL_PROJECT, process.cwd(), process.env.SYSTEM_SPECIFICATION_TOOL_PORT, process.env.SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS);
 } catch (error) {
   console.error(`Error: ${(error as Error).message}\n\n${HELP_TEXT}`);
   process.exit(1);
@@ -34,9 +37,18 @@ app.post("/api/projects/:project/nodes/:nodeId/assets", upload.single("image"), 
 });
 app.post("/api/projects/:project/verify", (req, res) => send(res, () => storage.verify(req.params.project, startup.testResultsPath)));
 app.use("/projects", express.static(startup.workspaceRoot));
+if (process.env.SYSTEM_SPECIFICATION_TOOL_DEV === "true") {
+  const { createServer } = await import("vite");
+  const vite = await createServer({ root: packageRoot, server: { middlewareMode: true }, appType: "spa" });
+  app.use(vite.middlewares);
+} else {
+  const distribution = join(packageRoot, "dist");
+  app.use(express.static(distribution));
+  app.get("/*path", (_req, res) => res.sendFile(join(distribution, "index.html")));
+}
 if (startup.initialProject) {
   console.log(`Loading project: ${startup.initialProjectPath}`);
   await storage.ensureProject(startup.initialProject);
   await storage.verify(startup.initialProject, startup.testResultsPath);
 }
-app.listen(startup.apiPort, () => console.log(`System Specification Tool API listening on port ${startup.apiPort}`));
+app.listen(startup.port, () => console.log(`System Specification Tool listening at http://localhost:${startup.port}/`));

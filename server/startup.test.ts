@@ -5,7 +5,7 @@ import { resolveStartupConfiguration } from "./startup.ts";
 describe("resolveStartupConfiguration", () => {
   const results = "/workspace/results";
   it("uses the configured workspace when no project argument is supplied", () => {
-    expect(resolveStartupConfiguration(["--test-results", results], "/repositories", undefined, "/workspace/specification")).toEqual({ workspaceRoot: "/workspace", initialProject: "specification", initialProjectPath: "/workspace/specification", port: 5173, apiPort: 3001, testResultsPath: results });
+    expect(resolveStartupConfiguration(["--test-results", results], "/repositories", undefined, "/workspace/specification")).toEqual({ workspaceRoot: "/workspace", initialProject: "specification", initialProjectPath: "/workspace/specification", port: 5173, testResultsPath: results });
   });
   it("uses a project argument as the initial project and scopes the workspace to its parent", () => {
     expect(resolveStartupConfiguration(["/repositories/payments-spec", "--test-results", "/results"])).toMatchObject({ workspaceRoot: "/repositories", initialProject: "payments-spec", initialProjectPath: "/repositories/payments-spec", testResultsPath: "/results" });
@@ -26,12 +26,8 @@ describe("resolveStartupConfiguration", () => {
   it("accepts the renamed port environment variable", () => {
     expect(resolveStartupConfiguration(["--test-results=/results"], undefined, undefined, "/workspace", "4567").port).toBe(4567);
   });
-  it("accepts a separate API port", () => {
-    expect(resolveStartupConfiguration(["--api-port=4124", "--test-results=/results"], undefined, undefined, "/workspace").apiPort).toBe(4124);
-    expect(resolveStartupConfiguration(["--test-results=/results"], undefined, undefined, "/workspace", undefined, "4125").apiPort).toBe(4125);
-  });
   it("requires test results path", () => { expect(() => resolveStartupConfiguration([])).toThrow(/test-results/); });
   it("accepts the test results environment variable", () => {
-    expect(resolveStartupConfiguration([], undefined, undefined, "/workspace", undefined, undefined, "reports").testResultsPath).toBe("/workspace/reports");
+    expect(resolveStartupConfiguration([], undefined, undefined, "/workspace", undefined, "reports").testResultsPath).toBe("/workspace/reports");
   });
 });

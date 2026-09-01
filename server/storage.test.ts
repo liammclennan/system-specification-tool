@@ -68,6 +68,8 @@ describe("ProjectStorage", () => {
     await store.saveTestResults("system", project.rootNodeId, { buffer: Buffer.from(JSON.stringify(report)), mimetype: "application/json", originalname: "report.json" });
     const verified = await store.verify("system");
     expect(verified.tree.claims[0].verification).toBe("failed");
+    expect(verified.tree.failedClaimCount).toBe(1);
+    expect(verified.tree.verifiedClaimCount).toBe(0);
     expect(verified.tree.verification).toBe("failed");
   });
   it("marks a node verified when all of its claims have passing matches", async () => {

@@ -52,8 +52,8 @@ npm test
 
 This also writes a machine-readable report to `test-results.json`.
 
-The `--port` argument and `SYSTEM_SPECIFICATION_TOOL_PORT` environment variable select the front-end (Vite) port. Use `--api-port` or `SYSTEM_SPECIFICATION_TOOL_API_PORT` to select the API port:
+The API and frontend are served by one web server. The `--port` argument or `SYSTEM_SPECIFICATION_TOOL_PORT` environment variable selects its port:
 
 ```sh
-npx system-specification-tool -- --port=4000 --api-port=4001
+npx system-specification-tool -- --port=4000
 ```
