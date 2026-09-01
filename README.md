@@ -1,65 +1,50 @@
 # System Specification Tool
 
-## High-level description
+## CLI help
 
-This is a tool for authoring and maintaining specifications of complex systems. The system is described hierarchically. Each node at each level of the hierarchy may include claims. A claim is a verifiable statement of fact about the system.
+```sh
+System Specification Tool
 
-## Technical details
+Usage:
+  system-specification-tool [options]
 
-System specification tool is a web application. The user interface is a React application written in Typescript.
+Options:
+  --project <path>       Specification directory (defaults to the current directory)
+  --test-results <path>  Test result file or directory (required unless the environment variable is set)
+  --port <number>        Web server port (default: 5173)
+  --print                Verify, print a claim report, and exit without starting the server
+  --help                 Show this help message
 
-The server side is a node.js web application written in Typescript. Data persistence is accomplished by writing to text files intended to be part of a git repository, so that the evolution of the specification can be tracked and managed in Git, alongside the system being developed. Because the data storage is managed in Git it is better if it uses many small files rather than a small number of large text files.
-
-## Specification
-
-System Specification Tool is specified in the same style as is intended to be created with System Specification Tool. The levels of the specification hierarchy are represented by markdown headings, and claims are bullet list items. The specification is in `specification.md`.
+Environment:
+  SYSTEM_SPECIFICATION_TOOL_PROJECT
+  SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS
+  SYSTEM_SPECIFICATION_TOOL_PORT
+```
 
 ## Usage
 
-Install dependencies with `npm install`, then start the application in development mode:
+Install globally:
 
 ```sh
-npm run dev
+npm install -g system-specification-tool
 ```
 
-Development startup automatically opens the application in the default browser.
-
-The application treats the selected project directory as the specification itself. If that directory is empty, it is initialized with a root node. Existing files must contain a valid specification.
-
-To open a project directly, use the command-line argument:
+Navigate to a directory to contain your specification, then:
 
 ```sh
-npx system-specification-tool -- --project=/path/to/project --test-results=/path/to/test-results
+system-specification-tool --test-results=<directory containing test output files>
 ```
 
-`--test-results=/path/to/test-results` is required (or set `SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS`). It may point to a result file or a directory containing result files. Verification runs automatically at startup and can be run again with **Verify**; result files are read in place and are not uploaded or copied into the project.
+Create your specification, including verifiable claims. Copy the short identifier next to each claim and include it in the name of a test that verifies that claim. Press the 'Verify' button. 
 
-The path may be absolute or relative to the directory where the command is run. If `--project` is omitted, set `SYSTEM_SPECIFICATION_TOOL_PROJECT` or the current directory is used:
-
-```sh
-SYSTEM_SPECIFICATION_TOOL_PROJECT=./my-specification SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS=./test-results npm run dev
-```
-
-For local development before publishing, use `npm link` and then run `system-specification-tool`, or run `node bin/system-specification-tool.mjs` directly.
-
-Test-result JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo test output, and Go `test -json` files are read from the configured test-results path. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
-
-Run the test suite with:
-
-```sh
-npm test
-```
-
-This also writes a machine-readable report to `test-results.json`.
-
-The API and frontend are served by one web server. The `--port` argument or `SYSTEM_SPECIFICATION_TOOL_PORT` environment variable selects its port:
-
-```sh
-npx system-specification-tool -- --port=4000
-```
+## Usage within CI
 
 For non-interactive verification, use `--print`. This regenerates `specification.md`, prints claim totals and details for failing or unverified claims, and does not start the web server. It exits with code 0 when every claim is verified or ignored, and code 1 otherwise:
 
-```sh
-npx system-specification-tool -- --project=/path/to/project --test-results=/path/to/test-results --print
-```
+## Test output file support
+
+Supported formats are JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo test output, and Go `test -json`. Files are read from the configured test-results path. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
+
+## Usage with AI agents
+
+Each time that the claims are verified `system-specification-tool` writes an AI agent friendly markdown specification (`specification.md`) into your project directory. 
