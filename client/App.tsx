@@ -603,13 +603,21 @@ function WorkspaceApp() {
             <div className="project-header">
               <strong>{project.name}</strong>
               <div className="project-header-actions">
-                <a className="header-link" href={`/specification/${encodeURIComponent(project.name)}`}>Specification</a>
+                <a className="header-link icon-button" href={`/specification/${encodeURIComponent(project.name)}`} aria-label="View specification" title="View specification">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6M9 17h6" /></svg>
+                </a>
                 <button
+                  className="icon-button"
+                  aria-label="Expand all"
+                  title="Expand all"
                   onClick={() => setExpanded(new Set(allNodeIds(project.tree)))}
                 >
-                  Expand all
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                 </button>
                 <button
+                  className="icon-button"
+                  aria-label="Verify"
+                  title="Verify"
                   onClick={async () => {
                     try {
                       refresh(await api.verify(project.name));
@@ -618,7 +626,7 @@ function WorkspaceApp() {
                     }
                   }}
                 >
-                  Verify
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
                 </button>
               </div>
             </div>

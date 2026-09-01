@@ -138,7 +138,7 @@ export class ProjectStorage {
   private claimFile(claim: Pick<StoredClaim, "id" | "nodeId" | "text" | "order"> & { verification?: VerificationStatus; ignored?: boolean }) {
     return `---\nid: ${claim.id}\nnodeId: ${claim.nodeId}\norder: ${claim.order}\nverification: ${claim.verification ?? "unverified"}\nignored: ${claim.ignored ?? false}\n---\n${claim.text.trim()}\n`;
   }
-  private specificationMarkdown(project: Project, createdAt: Date) {
+  private specificationMarkdown(project: Project, createdAt: Date, specificationPath: string) {
     const pad = (value: number) => String(value).padStart(2, "0");
     const offsetMinutes = -createdAt.getTimezoneOffset();
     const offsetSign = offsetMinutes >= 0 ? "+" : "-";
@@ -155,7 +155,7 @@ export class ProjectStorage {
         ...node.children.map((child) => renderNode(child, depth + 1)),
       ].join("\n\n");
     };
-    return `Generated: ${localTimestamp}\n\n${renderNode(project.tree, 0)}\n`;
+    return `Generated: ${localTimestamp}\n\nSpecification file: \`${specificationPath}\`\n\n${renderNode(project.tree, 0)}\n`;
   }
   private async load(projectPath: string) {
     const manifest = await this.readManifest(projectPath);
@@ -317,7 +317,8 @@ export class ProjectStorage {
       return this.atomic(join(path, "claims", `${claim.id}.md`), this.claimFile({ ...claim, verification }));
     }));
     const verifiedProject = await this.openProject(project);
-    await this.atomic(join(path, "specification.md"), this.specificationMarkdown(verifiedProject, new Date()));
+    const specificationPath = join(path, "specification.md");
+    await this.atomic(specificationPath, this.specificationMarkdown(verifiedProject, new Date(), specificationPath));
     return verifiedProject;
   }
 }

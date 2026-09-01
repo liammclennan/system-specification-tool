@@ -117,7 +117,9 @@ describe("ProjectStorage", () => {
     project = await store.createNode("system", project.rootNodeId, "Second child");
     await store.verify("system");
     const markdown = await readFile(join(roots[0], "system", "specification.md"), "utf8");
-    expect(markdown).toMatch(/^Generated: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}\n\n# system\n/);
+    expect(markdown).toMatch(/^Generated: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}\n/);
+    expect(markdown).toContain(`Specification file: \`${join(roots[0], "system", "specification.md")}\``);
+    expect(markdown).toContain("\n\n# system\n");
     expect(markdown).toContain("**Verification status:** unverified");
     expect(markdown).toContain("- **unverified** — Root claim.");
     expect(markdown).toContain("**Content:**\n\nRoot content.");
