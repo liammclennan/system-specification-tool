@@ -1,0 +1,28 @@
+{
+  "name": "guess-demo-node",
+  "version": "0.0.1",
+  "description": "A demo of the blprnt specification verification system.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blprnt-org/guess-demo-node.git"
+  },
+  "keywords": [
+    "blprnt",
+    "test",
+    "jets"
+  ],
+  "author": "Liam McLennan",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/blprnt-org/guess-demo-node/issues"
+  },
+  "homepage": "https://github.com/blprnt-org/guess-demo-node#readme",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-junit": "^16.0.0"
+  }
+}
