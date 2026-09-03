@@ -25,7 +25,9 @@ describe("resolveStartupConfiguration", () => {
   it("accepts the renamed port environment variable", () => {
     expect(resolveStartupConfiguration(["--test-results=/results"], undefined, "/workspace", "4567").port).toBe(4567);
   });
-  it("requires test results path", () => { expect(() => resolveStartupConfiguration([])).toThrow(/test-results/); });
+  it("allows verification to be disabled by omitting test results", () => {
+    expect(resolveStartupConfiguration([], undefined, "/workspace").testResultsPath).toBeUndefined();
+  });
   it("accepts the test results environment variable", () => {
     expect(resolveStartupConfiguration([], undefined, "/workspace", undefined, "reports").testResultsPath).toBe("/workspace/reports");
   });

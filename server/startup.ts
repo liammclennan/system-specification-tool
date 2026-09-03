@@ -5,7 +5,7 @@ export interface StartupConfiguration {
   initialProject?: string;
   initialProjectPath?: string;
   port: number;
-  testResultsPath: string;
+  testResultsPath?: string;
 }
 
 export const HELP_TEXT = `System Specification Tool
@@ -15,7 +15,7 @@ Usage:
 
 Options:
   --project <path>       Specification directory (defaults to the current directory)
-  --test-results <path>  Test result file or directory (required unless the environment variable is set)
+  --test-results <path>  Test result file or directory (enables verification)
   --port <number>        Web server port (default: 5173)
   --print                Verify, print a claim report, and exit without starting the server
   --help                 Show this help message
@@ -42,7 +42,6 @@ export function resolveStartupConfiguration(args: string[], environmentProject?:
   const positional = args.find((arg) => !arg.startsWith("-") && !optionValues.has(arg));
   const projectPath = namedProject || positional || environmentProject || callerDirectory;
   const testResultsArgument = args.find((arg) => arg.startsWith("--test-results="))?.slice("--test-results=".length) ?? (() => { const index = args.indexOf("--test-results"); return index >= 0 ? args[index + 1] : undefined; })() ?? environmentTestResults;
-  if (!testResultsArgument) throw new Error("The --test-results option or SYSTEM_SPECIFICATION_TOOL_TEST_RESULTS environment variable is required");
   const absoluteProjectPath = resolve(callerDirectory, projectPath);
-  return { workspaceRoot: dirname(absoluteProjectPath), initialProject: basename(absoluteProjectPath), initialProjectPath: absoluteProjectPath, port, testResultsPath: resolve(callerDirectory, testResultsArgument) };
+  return { workspaceRoot: dirname(absoluteProjectPath), initialProject: basename(absoluteProjectPath), initialProjectPath: absoluteProjectPath, port, testResultsPath: testResultsArgument ? resolve(callerDirectory, testResultsArgument) : undefined };
 }

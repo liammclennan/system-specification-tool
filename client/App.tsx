@@ -78,7 +78,8 @@ function RenderedSpecification({ projectName }: { projectName: string }) {
     let active = true;
     void (async () => {
       try {
-        await api.verify(projectName);
+        const configuration = await api.configuration();
+        if (configuration.verificationEnabled) await api.verify(projectName);
         const response = await fetch(`/projects/${encodeURIComponent(projectName)}/specification.md`, { cache: "no-store" });
         if (!response.ok) throw new Error("Could not load the generated specification.");
         const updatedMarkdown = await response.text();
@@ -89,7 +90,7 @@ function RenderedSpecification({ projectName }: { projectName: string }) {
     })();
     return () => { active = false; };
   }, [projectName]);
-  return <main className="rendered-specification"><a href="/">← Back to application</a>{error ? <p className="error">{error}</p> : markdown ? <ReactMarkdown>{markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}</ReactMarkdown> : <p>Verifying and generating specification…</p>}</main>;
+  return <main className="rendered-specification"><a href="/">← Back to application</a>{error ? <p className="error">{error}</p> : markdown ? <ReactMarkdown>{markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}</ReactMarkdown> : <p>Loading specification…</p>}</main>;
 }
 function TreeNode({
   node,
@@ -482,6 +483,9 @@ function WorkspaceApp() {
   const [selected, setSelected] = useState("");
   const [expanded, setExpanded] = useState(new Set<string>());
   const [error, setError] = useState("");
+  const [verificationNotice, setVerificationNotice] = useState("");
+  const [verificationEnabled, setVerificationEnabled] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [sidebarSize] = useState(loadSidebarSize);
   const selectedNode = useMemo(
     () => project && findNode(project.tree, selected),
@@ -500,6 +504,7 @@ function WorkspaceApp() {
           api.configuration(),
         ]);
         setProjects(availableProjects);
+        setVerificationEnabled(configuration.verificationEnabled);
         if (configuration.initialProject)
           await open(configuration.initialProject);
       } catch (e) {
@@ -620,12 +625,36 @@ function WorkspaceApp() {
                 <button
                   className="icon-button"
                   aria-label="Verify"
-                  title="Verify"
+                  title={
+                    !verificationEnabled
+                      ? "Restart with a `--test-results` path to enable verification"
+                      : verifying
+                        ? "Verifying…"
+                        : "Verify"
+                  }
+                  disabled={!verificationEnabled || verifying}
                   onClick={async () => {
+                    setVerifying(true);
+                    setError("");
+                    setVerificationNotice("");
                     try {
-                      refresh(await api.verify(project.name));
+                      const verifiedProject = await api.verify(project.name);
+                      refresh(verifiedProject);
+                      const root = verifiedProject.tree;
+                      const unverified = Math.max(
+                        0,
+                        root.recursiveClaimCount -
+                          root.ignoredClaimCount -
+                          root.verifiedClaimCount -
+                          root.failedClaimCount,
+                      );
+                      setVerificationNotice(
+                        `Verification complete: ${root.verifiedClaimCount} verified, ${root.failedClaimCount} failed, ${unverified} unverified, ${root.ignoredClaimCount} ignored.`,
+                      );
                     } catch (e) {
                       setError((e as Error).message);
+                    } finally {
+                      setVerifying(false);
                     }
                   }}
                 >
@@ -667,8 +696,17 @@ function WorkspaceApp() {
         </PanelGroup>
       </DndContext>
       {error && (
-        <div className="toast" onClick={() => setError("")}>
+        <div className="toast" role="alert" onClick={() => setError("")}>
           {error}
+        </div>
+      )}
+      {verificationNotice && (
+        <div
+          className="toast success"
+          role="status"
+          onClick={() => setVerificationNotice("")}
+        >
+          {verificationNotice}
         </div>
       )}
     </div>

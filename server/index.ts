@@ -20,6 +20,10 @@ try {
 }
 const storage = new ProjectStorage(startup.workspaceRoot);
 if (process.argv.slice(2).includes("--print")) {
+  if (!startup.testResultsPath) {
+    console.error("Error: The --print option requires a --test-results path");
+    process.exit(1);
+  }
   await storage.ensureProject(startup.initialProject!);
   const result = verificationReport(await storage.verify(startup.initialProject!, startup.testResultsPath));
   process.stdout.write(result.output);
@@ -30,7 +34,7 @@ app.use(express.json({ limit: "1mb" }));
 const send = (res: express.Response, action: () => Promise<unknown>) => action().then((data) => res.json(data)).catch((error) => res.status(error instanceof StorageError ? error.status : 500).json({ error: error.message || "Unexpected server error" }));
 
 app.get("/api/projects", (_req, res) => send(res, () => storage.listProjects()));
-app.get("/api/config", (_req, res) => res.json({ initialProject: startup.initialProject ?? null }));
+app.get("/api/config", (_req, res) => res.json({ initialProject: startup.initialProject ?? null, verificationEnabled: Boolean(startup.testResultsPath) }));
 app.post("/api/projects", (req, res) => send(res, () => storage.createProject(req.body.name)));
 app.get("/api/projects/:project", (req, res) => send(res, () => storage.openProject(req.params.project)));
 app.post("/api/projects/:project/nodes", (req, res) => send(res, () => storage.createNode(req.params.project, req.body.parentId, req.body.name)));
@@ -46,7 +50,10 @@ app.post("/api/projects/:project/nodes/:nodeId/assets", upload.single("image"), 
   if (!req.file) return res.status(400).json({ error: "An image is required" });
   return send(res, () => storage.saveAsset(req.params.project as string, req.params.nodeId as string, req.file!));
 });
-app.post("/api/projects/:project/verify", (req, res) => send(res, () => storage.verify(req.params.project, startup.testResultsPath)));
+app.post("/api/projects/:project/verify", (req, res) => {
+  if (!startup.testResultsPath) return res.status(400).json({ error: "Restart with a --test-results path to enable verification" });
+  return send(res, () => storage.verify(req.params.project as string, startup.testResultsPath!));
+});
 app.use("/projects", express.static(startup.workspaceRoot));
 const httpServer = createHttpServer(app);
 if (process.env.SYSTEM_SPECIFICATION_TOOL_DEV === "true") {
@@ -61,7 +68,7 @@ if (process.env.SYSTEM_SPECIFICATION_TOOL_DEV === "true") {
 if (startup.initialProject) {
   console.log(`Loading project: ${startup.initialProjectPath}`);
   await storage.ensureProject(startup.initialProject);
-  await storage.verify(startup.initialProject, startup.testResultsPath);
+  if (startup.testResultsPath) await storage.verify(startup.initialProject, startup.testResultsPath);
 }
 httpServer.listen(startup.port, () => {
   const browserUrl = `http://localhost:${startup.port}/`;

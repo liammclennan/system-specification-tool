@@ -5,7 +5,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return response.json();
 }
 export const api = {
-  configuration: () => request<{ initialProject: string | null }>("/api/config"),
+  configuration: () => request<{ initialProject: string | null; verificationEnabled: boolean }>("/api/config"),
   projects: () => request<string[]>("/api/projects"),
   createProject: (name: string) => request<Project>("/api/projects", { method: "POST", body: JSON.stringify({ name }) }),
   project: (name: string) => request<Project>(`/api/projects/${encodeURIComponent(name)}`),
