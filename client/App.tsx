@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { closestCenter, DndContext, pointerWithin, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
 import {
@@ -198,6 +198,7 @@ function Detail({
   const [content, setContent] = useState(node.content);
   const [claim, setClaim] = useState("");
   const [editingContent, setEditingContent] = useState(!node.content);
+  const newClaimInput = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     setName(node.name);
     setContent(node.content);
@@ -215,6 +216,7 @@ function Detail({
     try {
       refresh(await api.createClaim(project.name, node.id, claim));
       setClaim("");
+      newClaimInput.current?.focus();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -274,6 +276,7 @@ function Detail({
         </SortableContext>
         <div className="new-claim">
           <textarea
+            ref={newClaimInput}
             value={claim}
             onChange={(e) => setClaim(e.target.value)}
             placeholder="Add a verifiable claim…"
