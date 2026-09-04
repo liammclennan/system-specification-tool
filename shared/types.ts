@@ -33,6 +33,16 @@ export interface Project {
   /** @deprecated retained for persisted legacy projects; uploads are no longer exposed by the UI/API. */
   testResults: TestResultsFile[];
 }
-export interface TestResultsFile { id: string; fileName: string; }
-export interface VerificationTest { name: string; status: "passed" | "failed" | "ignored"; }
-export interface VerificationTestFile { fileName: string; modifiedAt: string; tests: VerificationTest[]; }
+export interface TestResultsFile {
+  id: string;
+  fileName: string;
+}
+export interface VerificationTest {
+  name: string;
+  status: "passed" | "failed" | "ignored";
+}
+export interface VerificationTestFile {
+  fileName: string;
+  modifiedAt: string;
+  tests: VerificationTest[];
+}

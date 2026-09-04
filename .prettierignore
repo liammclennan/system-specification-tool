@@ -1,0 +1,6 @@
+dist/
+node_modules/
+test/test-results/
+test/guess-demo-node/
+specification/
+agents.md

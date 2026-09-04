@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { closestCenter, DndContext, pointerWithin, useDraggable, useDroppable } from "@dnd-kit/core";
-import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
 import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+  closestCenter,
+  DndContext,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
+import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -14,9 +16,7 @@ import { api } from "./api.ts";
 import { TestResultsView } from "./TestResultsView.tsx";
 
 function findNode(node: NodeRecord, id: string): NodeRecord | undefined {
-  return node.id === id
-    ? node
-    : node.children.map((child) => findNode(child, id)).find(Boolean);
+  return node.id === id ? node : node.children.map((child) => findNode(child, id)).find(Boolean);
 }
 function allNodeIds(node: NodeRecord): string[] {
   return [node.id, ...node.children.flatMap(allNodeIds)];
@@ -67,25 +67,47 @@ function loadExpandedNodes(project: Project) {
 }
 function saveExpandedNodes(projectName: string, expanded: Set<string>) {
   try {
-    localStorage.setItem(`system-specification-tool.expanded.${projectName}`, JSON.stringify([...expanded]));
+    localStorage.setItem(
+      `system-specification-tool.expanded.${projectName}`,
+      JSON.stringify([...expanded]),
+    );
   } catch {
     // Continue with the in-memory expansion state when storage is unavailable.
   }
 }
-interface TableOfContentsEntry { level: number; text: string; id: string; line: number; }
+interface TableOfContentsEntry {
+  level: number;
+  text: string;
+  id: string;
+  line: number;
+}
 function tableOfContents(markdown: string): TableOfContentsEntry[] {
   const used = new Map<string, number>();
   let fenced = false;
   return markdown.split("\n").flatMap((line, index) => {
-    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; return []; }
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      return [];
+    }
     if (fenced) return [];
     const match = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
     if (!match) return [];
     const text = match[2].replace(/[`*_~\[\]]/g, "").trim();
-    const base = text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "section";
+    const base =
+      text
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "-")
+        .replace(/^-|-$/g, "") || "section";
     const occurrence = used.get(base) ?? 0;
     used.set(base, occurrence + 1);
-    return [{ level: match[1].length, text, id: occurrence ? `${base}-${occurrence + 1}` : base, line: index + 1 }];
+    return [
+      {
+        level: match[1].length,
+        text,
+        id: occurrence ? `${base}-${occurrence + 1}` : base,
+        line: index + 1,
+      },
+    ];
   });
 }
 function RenderedSpecification({ projectName }: { projectName: string }) {
@@ -97,7 +119,10 @@ function RenderedSpecification({ projectName }: { projectName: string }) {
       try {
         const configuration = await api.configuration();
         if (configuration.verificationEnabled) await api.verify(projectName);
-        const response = await fetch(`/projects/${encodeURIComponent(projectName)}/specification.md`, { cache: "no-store" });
+        const response = await fetch(
+          `/projects/${encodeURIComponent(projectName)}/specification.md`,
+          { cache: "no-store" },
+        );
         if (!response.ok) throw new Error("Could not load the generated specification.");
         const updatedMarkdown = await response.text();
         if (active) setMarkdown(updatedMarkdown);
@@ -105,11 +130,17 @@ function RenderedSpecification({ projectName }: { projectName: string }) {
         if (active) setError((reason as Error).message);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [projectName]);
   const contents = useMemo(() => tableOfContents(markdown), [markdown]);
-  const headingIds = useMemo(() => new Map(contents.map((heading) => [heading.line, heading.id])), [contents]);
-  const headingId = (node: { position?: { start: { line: number } } } | undefined) => headingIds.get(node?.position?.start.line ?? -1);
+  const headingIds = useMemo(
+    () => new Map(contents.map((heading) => [heading.line, heading.id])),
+    [contents],
+  );
+  const headingId = (node: { position?: { start: { line: number } } } | undefined) =>
+    headingIds.get(node?.position?.start.line ?? -1);
   const components: Components = {
     h1: ({ node, ...props }) => <h1 id={headingId(node)} {...props} />,
     h2: ({ node, ...props }) => <h2 id={headingId(node)} {...props} />,
@@ -118,13 +149,65 @@ function RenderedSpecification({ projectName }: { projectName: string }) {
     h5: ({ node, ...props }) => <h5 id={headingId(node)} {...props} />,
     h6: ({ node, ...props }) => <h6 id={headingId(node)} {...props} />,
   };
-  return <main className="rendered-specification"><a href="/">← Back to application</a>{error ? <p className="error">{error}</p> : markdown ? <div className="rendered-specification-layout"><aside className="table-of-contents"><strong>Contents</strong><nav aria-label="Table of contents">{contents.map((heading) => <a key={`${heading.line}-${heading.id}`} href={`#${heading.id}`} style={{ paddingLeft: `${(heading.level - 1) * .75}rem` }}>{heading.text}</a>)}</nav></aside><article><ReactMarkdown components={components}>{markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}</ReactMarkdown></article></div> : <p>Loading specification…</p>}</main>;
+  return (
+    <main className="rendered-specification">
+      <a href="/">← Back to application</a>
+      {error ? (
+        <p className="error">{error}</p>
+      ) : markdown ? (
+        <div className="rendered-specification-layout">
+          <aside className="table-of-contents">
+            <strong>Contents</strong>
+            <nav aria-label="Table of contents">
+              {contents.map((heading) => (
+                <a
+                  key={`${heading.line}-${heading.id}`}
+                  href={`#${heading.id}`}
+                  style={{ paddingLeft: `${(heading.level - 1) * 0.75}rem` }}
+                >
+                  {heading.text}
+                </a>
+              ))}
+            </nav>
+          </aside>
+          <article>
+            <ReactMarkdown components={components}>
+              {markdown.replaceAll(
+                "../assets/",
+                `/projects/${encodeURIComponent(projectName)}/assets/`,
+              )}
+            </ReactMarkdown>
+          </article>
+        </div>
+      ) : (
+        <p>Loading specification…</p>
+      )}
+    </main>
+  );
 }
 function TestResultsPage({ projectName }: { projectName: string }) {
   const [files, setFiles] = useState<Awaited<ReturnType<typeof api.testResults>>>();
   const [error, setError] = useState("");
-  useEffect(() => { void api.testResults(projectName).then(setFiles).catch((reason: Error) => setError(reason.message)); }, [projectName]);
-  return <main className="test-results-page"><a href="/">← Back to application</a><h1>Test results</h1><p className="hint">Tests used to verify {projectName}, grouped by result file.</p>{error ? <p className="error">{error}</p> : files ? <TestResultsView files={files} /> : <p>Loading test results…</p>}</main>;
+  useEffect(() => {
+    void api
+      .testResults(projectName)
+      .then(setFiles)
+      .catch((reason: Error) => setError(reason.message));
+  }, [projectName]);
+  return (
+    <main className="test-results-page">
+      <a href="/">← Back to application</a>
+      <h1>Test results</h1>
+      <p className="hint">Tests used to verify {projectName}, grouped by result file.</p>
+      {error ? (
+        <p className="error">{error}</p>
+      ) : files ? (
+        <TestResultsView files={files} />
+      ) : (
+        <p>Loading test results…</p>
+      )}
+    </main>
+  );
 }
 function TreeNode({
   node,
@@ -152,9 +235,7 @@ function TreeNode({
   const verifiedPercentage = includedClaimCount
     ? (node.verifiedClaimCount / includedClaimCount) * 100
     : 0;
-  const failedPercentage = includedClaimCount
-    ? (failedClaimCount / includedClaimCount) * 100
-    : 0;
+  const failedPercentage = includedClaimCount ? (failedClaimCount / includedClaimCount) * 100 : 0;
   return (
     <li>
       <div
@@ -279,7 +360,9 @@ function Detail({
             onChange={(e) => setName(e.target.value)}
             onBlur={() => name !== node.name && save({ name })}
           />
-          <p className="hint">ID: {node.shortId} · Status: {node.verification}</p>
+          <p className="hint">
+            ID: {node.shortId} · Status: {node.verification}
+          </p>
         </div>
         <div className="node-actions">
           <button
@@ -356,9 +439,7 @@ function Detail({
         <h2>Content</h2>
         {editingContent ? (
           <>
-            <p className="hint">
-              Markdown is saved directly in this node’s content file.
-            </p>
+            <p className="hint">Markdown is saved directly in this node’s content file.</p>
             <textarea
               className="content-editor"
               value={content}
@@ -368,11 +449,7 @@ function Detail({
             <div>
               <label className="upload">
                 Upload image{" "}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => upload(e.target.files?.[0])}
-                />
+                <input type="file" accept="image/*" onChange={(e) => upload(e.target.files?.[0])} />
               </label>
               {node.content && (
                 <button
@@ -388,9 +465,7 @@ function Detail({
           </>
         ) : (
           <>
-            <button onClick={() => setEditingContent(true)}>
-              Edit content
-            </button>
+            <button onClick={() => setEditingContent(true)}>Edit content</button>
             <div className="markdown">
               <ReactMarkdown>
                 {content.replaceAll(
@@ -408,10 +483,7 @@ function Detail({
           <ul className="children">
             {node.children.map((child) => (
               <li key={child.id}>
-                <button
-                  className="child-link"
-                  onClick={() => onSelect(child.id)}
-                >
+                <button className="child-link" onClick={() => onSelect(child.id)}>
                   {child.name}
                 </button>
               </li>
@@ -495,8 +567,8 @@ function ClaimEditor({
           aria-label="Copy claim short identifier"
         >
           {copied ? "✓" : "⧉"}
-        </button>
-        {" "}· {item.ignored ? "ignored" : item.verification}
+        </button>{" "}
+        · {item.ignored ? "ignored" : item.verification}
       </code>
       <div className="claim-content">
         <textarea
@@ -513,10 +585,15 @@ function ClaimEditor({
         />
         {linkedTests.length > 0 && (
           <details className="linked-tests">
-            <summary>{linkedTests.length} linked {linkedTests.length === 1 ? "test" : "tests"}</summary>
+            <summary>
+              {linkedTests.length} linked {linkedTests.length === 1 ? "test" : "tests"}
+            </summary>
             <ul>
               {linkedTests.map((test, index) => (
-                <li key={`${test.name}-${index}`}><span>{test.name}</span><strong className={`test-status ${test.status}`}>{test.status}</strong></li>
+                <li key={`${test.name}-${index}`}>
+                  <span>{test.name}</span>
+                  <strong className={`test-status ${test.status}`}>{test.status}</strong>
+                </li>
               ))}
             </ul>
           </details>
@@ -526,9 +603,7 @@ function ClaimEditor({
         <button
           onClick={async () => {
             try {
-              refresh(
-                await api.setClaimIgnored(project, item.id, !item.ignored),
-              );
+              refresh(await api.setClaimIgnored(project, item.id, !item.ignored));
             } catch (e) {
               setError((e as Error).message);
             }
@@ -586,8 +661,7 @@ function WorkspaceApp() {
         ]);
         setProjects(availableProjects);
         setVerificationEnabled(configuration.verificationEnabled);
-        if (configuration.initialProject)
-          await open(configuration.initialProject);
+        if (configuration.initialProject) await open(configuration.initialProject);
       } catch (e) {
         setError((e as Error).message);
       }
@@ -602,8 +676,12 @@ function WorkspaceApp() {
     if (project) saveExpandedNodes(project.name, expanded);
   }, [project?.name, expanded]);
   useEffect(() => {
-    if (!project || !verificationEnabled) { setTests([]); return; }
-    void api.testResults(project.name)
+    if (!project || !verificationEnabled) {
+      setTests([]);
+      return;
+    }
+    void api
+      .testResults(project.name)
       .then((files) => setTests(files.flatMap((file) => file.tests)))
       .catch((e) => setError((e as Error).message));
   }, [project?.name, verificationEnabled]);
@@ -620,23 +698,13 @@ function WorkspaceApp() {
       overId = event.over && String(event.over.id);
     if (!project || !overId || id === overId) return;
     try {
-      if (
-        id.startsWith("claim-") &&
-        overId.startsWith("claim-") &&
-        selectedNode
-      ) {
-        const oldIndex = selectedNode.claims.findIndex(
-          (claim) => `claim-${claim.id}` === id,
-        );
-        const newIndex = selectedNode.claims.findIndex(
-          (claim) => `claim-${claim.id}` === overId,
-        );
+      if (id.startsWith("claim-") && overId.startsWith("claim-") && selectedNode) {
+        const oldIndex = selectedNode.claims.findIndex((claim) => `claim-${claim.id}` === id);
+        const newIndex = selectedNode.claims.findIndex((claim) => `claim-${claim.id}` === overId);
         if (oldIndex < 0 || newIndex < 0) return;
         const orderedIds = selectedNode.claims.map((claim) => claim.id);
         orderedIds.splice(newIndex, 0, orderedIds.splice(oldIndex, 1)[0]);
-        refresh(
-          await api.reorderClaims(project.name, selectedNode.id, orderedIds),
-        );
+        refresh(await api.reorderClaims(project.name, selectedNode.id, orderedIds));
         return;
       }
       if (id.startsWith("claim-") && !overId.startsWith("claim-")) {
@@ -660,10 +728,7 @@ function WorkspaceApp() {
         <p>Open a specification stored in the configured server workspace.</p>
         {error && <p className="error">{error}</p>}
         <div className="project-actions">
-          <select
-            defaultValue=""
-            onChange={(e) => e.target.value && open(e.target.value)}
-          >
+          <select defaultValue="" onChange={(e) => e.target.value && open(e.target.value)}>
             <option value="" disabled>
               Choose a project…
             </option>
@@ -690,15 +755,14 @@ function WorkspaceApp() {
   return (
     <div className="app">
       <DndContext collisionDetection={collisionDetection} onDragEnd={dragEnd}>
-        <PanelGroup
-          direction="horizontal"
-          onLayout={(sizes) => saveSidebarSize(sizes[0])}
-        >
+        <PanelGroup direction="horizontal" onLayout={(sizes) => saveSidebarSize(sizes[0])}>
           <Panel defaultSize={sidebarSize} minSize={20} className="sidebar">
             <div className="project-header">
               <details className="specification-menu">
                 <summary className="header-link icon-button" aria-label="Menu" title="Menu">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16" />
+                  </svg>
                 </summary>
                 <div className="specification-menu-items">
                   <a href="/">Specification</a>
@@ -714,7 +778,9 @@ function WorkspaceApp() {
                   title="Expand all"
                   onClick={() => setExpanded(new Set(allNodeIds(project.tree)))}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
                 </button>
                 <button
                   className="icon-button"
@@ -753,7 +819,9 @@ function WorkspaceApp() {
                     }
                   }}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m5 12 4 4L19 6" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -797,11 +865,7 @@ function WorkspaceApp() {
         </div>
       )}
       {verificationNotice && (
-        <div
-          className="toast success"
-          role="status"
-          onClick={() => setVerificationNotice("")}
-        >
+        <div className="toast success" role="status" onClick={() => setVerificationNotice("")}>
           {verificationNotice}
         </div>
       )}
@@ -811,13 +875,29 @@ function WorkspaceApp() {
 export function App() {
   const testsMatch = window.location.pathname.match(/^\/test-results\/([^/]+)\/?$/);
   if (testsMatch) {
-    try { return <TestResultsPage projectName={decodeURIComponent(testsMatch[1])} />; }
-    catch { return <main className="test-results-page"><a href="/">← Back to application</a><p className="error">The test-results URL is invalid.</p></main>; }
+    try {
+      return <TestResultsPage projectName={decodeURIComponent(testsMatch[1])} />;
+    } catch {
+      return (
+        <main className="test-results-page">
+          <a href="/">← Back to application</a>
+          <p className="error">The test-results URL is invalid.</p>
+        </main>
+      );
+    }
   }
   const match = window.location.pathname.match(/^\/specification\/([^/]+)\/?$/);
   if (match) {
-    try { return <RenderedSpecification projectName={decodeURIComponent(match[1])} />; }
-    catch { return <main className="rendered-specification"><a href="/">← Back to application</a><p className="error">The specification URL is invalid.</p></main>; }
+    try {
+      return <RenderedSpecification projectName={decodeURIComponent(match[1])} />;
+    } catch {
+      return (
+        <main className="rendered-specification">
+          <a href="/">← Back to application</a>
+          <p className="error">The specification URL is invalid.</p>
+        </main>
+      );
+    }
   }
   return <WorkspaceApp />;
 }

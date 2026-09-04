@@ -14,10 +14,14 @@ export function verificationReport(project: Project): VerificationReport {
       else if (claim.verification === "verified") counts.verified++;
       else if (claim.verification === "failed") {
         counts.failing++;
-        outstanding.push(`- Failing — ${node.name}: [${claim.shortId}] ${claim.text.replace(/\s+/g, " ").trim()}`);
+        outstanding.push(
+          `- Failing — ${node.name}: [${claim.shortId}] ${claim.text.replace(/\s+/g, " ").trim()}`,
+        );
       } else {
         counts.unverified++;
-        outstanding.push(`- Unverified — ${node.name}: [${claim.shortId}] ${claim.text.replace(/\s+/g, " ").trim()}`);
+        outstanding.push(
+          `- Unverified — ${node.name}: [${claim.shortId}] ${claim.text.replace(/\s+/g, " ").trim()}`,
+        );
       }
     }
     node.children.forEach(visit);

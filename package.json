@@ -17,6 +17,8 @@
   "scripts": {
     "dev": "tsx server/dev.ts --",
     "build": "tsc --noEmit && vite build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prestart": "npm run build",
     "start": "tsx server/index.ts",
     "test": "vitest run --reporter=default --exclude=test/guess-demo-node --reporter=json --outputFile=test/test-results/test-results.json && npm start -- --print --test-results ./test/test-results --project ./specification/System-Specification-Tool",
@@ -46,6 +48,7 @@
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "jsdom": "^29.1.1",
+    "prettier": "^3.9.6",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

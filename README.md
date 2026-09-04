@@ -37,7 +37,7 @@ Navigate to a directory to contain your specification, then:
 system-specification-tool --test-results=<directory containing test output files>
 ```
 
-Create your specification, including verifiable claims. Copy the short identifier next to each claim and include it in the name of a test that verifies that claim. Press the 'Verify' button. 
+Create your specification, including verifiable claims. Copy the short identifier next to each claim and include it in the name of a test that verifies that claim. Press the 'Verify' button.
 
 ## Usage within CI
 
