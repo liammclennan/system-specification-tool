@@ -8,7 +8,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import type { NodeRecord, Project } from "../shared/types.ts";
 import { api } from "./api.ts";
 
@@ -71,6 +71,22 @@ function saveExpandedNodes(projectName: string, expanded: Set<string>) {
     // Continue with the in-memory expansion state when storage is unavailable.
   }
 }
+interface TableOfContentsEntry { level: number; text: string; id: string; line: number; }
+function tableOfContents(markdown: string): TableOfContentsEntry[] {
+  const used = new Map<string, number>();
+  let fenced = false;
+  return markdown.split("\n").flatMap((line, index) => {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; return []; }
+    if (fenced) return [];
+    const match = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (!match) return [];
+    const text = match[2].replace(/[`*_~\[\]]/g, "").trim();
+    const base = text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "section";
+    const occurrence = used.get(base) ?? 0;
+    used.set(base, occurrence + 1);
+    return [{ level: match[1].length, text, id: occurrence ? `${base}-${occurrence + 1}` : base, line: index + 1 }];
+  });
+}
 function RenderedSpecification({ projectName }: { projectName: string }) {
   const [markdown, setMarkdown] = useState("");
   const [error, setError] = useState("");
@@ -90,7 +106,18 @@ function RenderedSpecification({ projectName }: { projectName: string }) {
     })();
     return () => { active = false; };
   }, [projectName]);
-  return <main className="rendered-specification"><a href="/">← Back to application</a>{error ? <p className="error">{error}</p> : markdown ? <ReactMarkdown>{markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}</ReactMarkdown> : <p>Loading specification…</p>}</main>;
+  const contents = useMemo(() => tableOfContents(markdown), [markdown]);
+  const headingIds = useMemo(() => new Map(contents.map((heading) => [heading.line, heading.id])), [contents]);
+  const headingId = (node: { position?: { start: { line: number } } } | undefined) => headingIds.get(node?.position?.start.line ?? -1);
+  const components: Components = {
+    h1: ({ node, ...props }) => <h1 id={headingId(node)} {...props} />,
+    h2: ({ node, ...props }) => <h2 id={headingId(node)} {...props} />,
+    h3: ({ node, ...props }) => <h3 id={headingId(node)} {...props} />,
+    h4: ({ node, ...props }) => <h4 id={headingId(node)} {...props} />,
+    h5: ({ node, ...props }) => <h5 id={headingId(node)} {...props} />,
+    h6: ({ node, ...props }) => <h6 id={headingId(node)} {...props} />,
+  };
+  return <main className="rendered-specification"><a href="/">← Back to application</a>{error ? <p className="error">{error}</p> : markdown ? <div className="rendered-specification-layout"><aside className="table-of-contents"><strong>Contents</strong><nav aria-label="Table of contents">{contents.map((heading) => <a key={`${heading.line}-${heading.id}`} href={`#${heading.id}`} style={{ paddingLeft: `${(heading.level - 1) * .75}rem` }}>{heading.text}</a>)}</nav></aside><article><ReactMarkdown components={components}>{markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}</ReactMarkdown></article></div> : <p>Loading specification…</p>}</main>;
 }
 function TreeNode({
   node,
@@ -609,11 +636,17 @@ function WorkspaceApp() {
         >
           <Panel defaultSize={sidebarSize} minSize={20} className="sidebar">
             <div className="project-header">
+              <details className="specification-menu">
+                <summary className="header-link icon-button" aria-label="Menu" title="Menu">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                </summary>
+                <div className="specification-menu-items">
+                  <a href="/">Specification</a>
+                  <a href={`/specification/${encodeURIComponent(project.name)}`}>Rendered</a>
+                </div>
+              </details>
               <strong>{project.name}</strong>
               <div className="project-header-actions">
-                <a className="header-link icon-button" href={`/specification/${encodeURIComponent(project.name)}`} aria-label="View specification" title="View specification">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6M9 17h6" /></svg>
-                </a>
                 <button
                   className="icon-button"
                   aria-label="Expand all"
