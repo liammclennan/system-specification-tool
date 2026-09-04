@@ -53,6 +53,35 @@ async function renderWorkspace(value = project()) {
   render(<App />);
   await screen.findByDisplayValue(value.tree.name);
 }
+const renderedMarkdown = `Generated: 2026-09-04 12:00:00 +10:00
+
+# Root system
+
+**Verification status:** unverified
+
+**Claims:**
+
+- **unverified** — [a123] The system works.
+
+**Content:**
+
+Root content
+
+## Child service
+
+**Verification status:** verified
+
+**Content:**
+
+Child content
+`;
+async function renderSpecification() {
+  mocked.configuration.mockResolvedValue({ initialProject: "System", verificationEnabled: false });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, text: async () => renderedMarkdown }));
+  window.history.pushState({}, "", "/specification/System");
+  render(<App />);
+  await screen.findByRole("heading", { name: "Root system" });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -212,5 +241,41 @@ describe("workspace interface specification", () => {
     render(<App />); await userEvent.click(await screen.findByRole("button", { name: "Create project" }));
     expect(mocked.createProject).toHaveBeenCalledWith("System");
     expect(await screen.findByDisplayValue("Root system")).not.toBeNull();
+  });
+});
+
+describe("rendered specification", () => {
+  it("c7a4 shows the entire specification on a single page", async () => {
+    await renderSpecification();
+    const article = document.querySelector(".rendered-specification article")!;
+    expect(within(article as HTMLElement).getByRole("heading", { name: "Root system" })).not.toBeNull();
+    expect(within(article as HTMLElement).getByRole("heading", { name: "Child service" })).not.toBeNull();
+  });
+
+  it("e638 renders each subsystem node as a Markdown section", async () => {
+    await renderSpecification();
+    expect(screen.getByRole("heading", { level: 1, name: "Root system" })).not.toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: "Child service" })).not.toBeNull();
+  });
+
+  it("138c includes all subsystem detail in its section", async () => {
+    await renderSpecification();
+    const article = document.querySelector(".rendered-specification article")!;
+    expect(article.textContent).toContain("Verification status: unverified");
+    expect(article.textContent).toContain("[a123] The system works.");
+    expect(article.textContent).toContain("Root content");
+  });
+
+  it("fa3c includes child-node sections beneath their parent", async () => {
+    await renderSpecification();
+    const headings = [...document.querySelectorAll(".rendered-specification article h1, .rendered-specification article h2")];
+    expect(headings.map((heading) => heading.textContent)).toEqual(["Root system", "Child service"]);
+  });
+
+  it("9dd3 provides table-of-contents links to every subsystem section", async () => {
+    await renderSpecification();
+    const contents = within(screen.getByRole("navigation", { name: "Table of contents" }));
+    expect(contents.getByRole("link", { name: "Root system" }).getAttribute("href")).toBe("#root-system");
+    expect(contents.getByRole("link", { name: "Child service" }).getAttribute("href")).toBe("#child-service");
   });
 });
