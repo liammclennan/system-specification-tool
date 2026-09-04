@@ -2,6 +2,10 @@
 
 [![Test](https://github.com/liammclennan/system-specification-tool/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/liammclennan/system-specification-tool/actions/workflows/test.yml)
 
+This project is a web application that you run locally to develop and verify your system specification. Verification is done by linking claims about sub systems to the results of automated tests. 
+
+There is also a non-interactive mode (--print) to be used in automated testing and continuous integration scenarios. 
+
 ## CLI help
 
 ```sh
@@ -12,7 +16,7 @@ Usage:
 
 Options:
   --project <path>       Specification directory (defaults to the current directory)
-  --test-results <path>  Test result file or directory (required unless the environment variable is set)
+  --test-results <path>  Test result file or directory (enables verification)
   --port <number>        Web server port (default: 5173)
   --print                Verify, print a claim report, and exit without starting the server
   --help                 Show this help message
