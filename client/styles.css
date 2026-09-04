@@ -35,6 +35,7 @@
 .specification-menu-items a:hover, .specification-menu-items a:focus-visible { background: #edf3fb; }
 .toast.success { color: #17633a; background: #effaf3; border-color: #9ed5b2; }
 .detail header > div { flex: 1 1 auto; min-width: 0; }
+.detail header > .node-actions { display: flex; flex: 0 0 auto; gap: .5rem; }
 .rendered-specification { max-width: 920px; margin: 0 auto; padding: 2rem 3rem 5rem; font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; line-height: 1.65; }
 .rendered-specification > a { display: inline-block; margin-bottom: 1.5rem; color: #214c80; }
 .rendered-specification img { max-width: 100%; }

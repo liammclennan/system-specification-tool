@@ -44,6 +44,18 @@ describe("ProjectStorage", () => {
     await expect(store.moveNode("system", child.id, child.id)).rejects.toBeInstanceOf(StorageError);
     expect((await store.moveNode("system", child.id, destination.id)).tree.children.find((node) => node.id === destination.id)!.children[0].id).toBe(child.id);
   });
+  it("73cd 96d1 deletes a non-root node, moving its claims and children to its parent", async () => {
+    const store = await fixture(); let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "Existing parent claim");
+    project = await store.createNode("system", project.rootNodeId, "Child"); const deleted = project.tree.children[0];
+    project = await store.createClaim("system", deleted.id, "First moved claim");
+    project = await store.createClaim("system", deleted.id, "Second moved claim");
+    project = await store.createNode("system", deleted.id, "Grandchild"); const grandchildId = project.tree.children[0].children[0].id;
+    project = await store.deleteNode("system", deleted.id);
+    expect(project.tree.children.map((node) => node.id)).toContain(grandchildId);
+    expect(project.tree.claims.map((claim) => claim.text)).toEqual(["Existing parent claim", "First moved claim", "Second moved claim"]);
+    await expect(store.deleteNode("system", project.rootNodeId)).rejects.toThrow("root node cannot be deleted");
+  });
   it("does not overwrite an existing project", async () => {
     const store = await fixture(); await store.createProject("system");
     await expect(store.createProject("system")).rejects.toBeInstanceOf(StorageError);

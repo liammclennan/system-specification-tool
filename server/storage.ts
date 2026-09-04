@@ -253,6 +253,22 @@ export class ProjectStorage {
     let cursor: string | null = parentId; while (cursor) { if (cursor === id) throw new StorageError("A node cannot be moved into its own descendant"); cursor = loaded.nodes.get(cursor)?.parentId ?? null; }
     await this.writeNode(path, { ...node, parentId }); return this.openProject(project);
   }
+  async deleteNode(project: string, id: string) {
+    const path = this.safeProject(project); const loaded = await this.load(path); const node = loaded.nodes.get(id);
+    if (!node) throw new StorageError("Node was not found");
+    if (id === loaded.manifest.rootNodeId || !node.parentId) throw new StorageError("The root node cannot be deleted");
+    const parentId = node.parentId;
+    let order = Math.max(-1, ...loaded.claims.filter((claim) => claim.nodeId === parentId).map((claim) => claim.order)) + 1;
+    for (const claim of loaded.claims.filter((item) => item.nodeId === id).sort((a, b) => a.order - b.order)) {
+      await this.atomic(join(path, "claims", `${claim.id}.md`), this.claimFile({ ...claim, nodeId: parentId, order: order++ }));
+    }
+    for (const child of loaded.nodes.values()) {
+      if (child.parentId === id) await this.writeNode(path, { ...child, parentId });
+    }
+    await unlink(join(path, "nodes", `${id}.json`));
+    await unlink(join(path, "nodes", `${id}.md`));
+    return this.openProject(project);
+  }
   async createClaim(project: string, nodeId: string, text: string) {
     const path = this.safeProject(project); const loaded = await this.load(path);
     if (!loaded.nodes.has(nodeId)) throw new StorageError("Node was not found"); if (!text.trim()) throw new StorageError("Claim text is required");

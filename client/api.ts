@@ -13,6 +13,7 @@ export const api = {
   createNode: (project: string, parentId: string, name: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes`, { method: "POST", body: JSON.stringify({ parentId, name }) }),
   updateNode: (project: string, id: string, changes: object) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${id}`, { method: "PATCH", body: JSON.stringify(changes) }),
   moveNode: (project: string, id: string, parentId: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${id}/move`, { method: "POST", body: JSON.stringify({ parentId }) }),
+  deleteNode: (project: string, id: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${id}`, { method: "DELETE" }),
   createClaim: (project: string, nodeId: string, text: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims`, { method: "POST", body: JSON.stringify({ nodeId, text }) }),
   updateClaim: (project: string, id: string, text: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims/${id}`, { method: "PATCH", body: JSON.stringify({ text }) }),
   setClaimIgnored: (project: string, id: string, ignored: boolean) => request<Project>(`/api/projects/${encodeURIComponent(project)}/claims/${id}/ignore`, { method: "POST", body: JSON.stringify({ ignored }) }),

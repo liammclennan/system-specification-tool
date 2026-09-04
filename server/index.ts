@@ -44,6 +44,7 @@ app.get("/api/projects/:project/test-results", (req, res) => {
 app.post("/api/projects/:project/nodes", (req, res) => send(res, () => storage.createNode(req.params.project, req.body.parentId, req.body.name)));
 app.patch("/api/projects/:project/nodes/:id", (req, res) => send(res, () => storage.updateNode(req.params.project, req.params.id, req.body)));
 app.post("/api/projects/:project/nodes/:id/move", (req, res) => send(res, () => storage.moveNode(req.params.project, req.params.id, req.body.parentId)));
+app.delete("/api/projects/:project/nodes/:id", (req, res) => send(res, () => storage.deleteNode(req.params.project, req.params.id)));
 app.post("/api/projects/:project/claims", (req, res) => send(res, () => storage.createClaim(req.params.project, req.body.nodeId, req.body.text)));
 app.patch("/api/projects/:project/claims/:id", (req, res) => send(res, () => storage.updateClaim(req.params.project, req.params.id, req.body.text)));
 app.post("/api/projects/:project/claims/:id/ignore", (req, res) => send(res, () => storage.setClaimIgnored(req.params.project, req.params.id, req.body.ignored === true)));

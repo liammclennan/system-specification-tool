@@ -23,7 +23,7 @@ vi.mock("react-resizable-panels", () => ({
 }));
 vi.mock("./api.ts", () => ({ api: {
   projects: vi.fn(), configuration: vi.fn(), project: vi.fn(), createProject: vi.fn(),
-  createNode: vi.fn(), updateNode: vi.fn(), moveNode: vi.fn(), createClaim: vi.fn(),
+  createNode: vi.fn(), updateNode: vi.fn(), moveNode: vi.fn(), deleteNode: vi.fn(), createClaim: vi.fn(),
   updateClaim: vi.fn(), setClaimIgnored: vi.fn(), moveClaim: vi.fn(), reorderClaims: vi.fn(),
   deleteClaim: vi.fn(), upload: vi.fn(), verify: vi.fn(), testResults: vi.fn(),
 } }));
@@ -117,6 +117,22 @@ describe("workspace interface specification", () => {
     await renderWorkspace();
     await userEvent.click(screen.getByRole("button", { name: "Child service" }));
     expect(await screen.findByDisplayValue("Child service")).not.toBeNull();
+  });
+
+  it("73cd 96d1 deletes a subsystem after warning that its claims move to the parent", async () => {
+    const childWithClaims = child({
+      claims: [{ id: "child-claim", shortId: "d333", nodeId: "child-id", text: "Child claim", verification: "unverified", ignored: false }],
+      directClaimCount: 1, recursiveClaimCount: 1, verification: "unverified",
+    });
+    const initial = project({ children: [childWithClaims], recursiveClaimCount: 2 });
+    mocked.deleteNode.mockResolvedValue(project({ children: [] }));
+    const confirmDelete = vi.fn(() => true); vi.stubGlobal("confirm", confirmDelete);
+    await renderWorkspace(initial);
+    await userEvent.click(screen.getByRole("button", { name: "Child service" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Delete" }));
+    expect(confirmDelete).toHaveBeenCalledWith("Delete Child service? Its 1 claim will be moved to the parent node.");
+    expect(mocked.deleteNode).toHaveBeenCalledWith("System", "child-id");
+    expect(await screen.findByDisplayValue("Root system")).not.toBeNull();
   });
 
   it("9d2f shows node name, short identifier, claims, and direct children", async () => {

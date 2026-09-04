@@ -281,19 +281,41 @@ function Detail({
           />
           <p className="hint">ID: {node.shortId} · Status: {node.verification}</p>
         </div>
-        <button
-          onClick={async () => {
-            const child = prompt("Name for the new sub-system node");
-            if (child)
-              try {
-                refresh(await api.createNode(project.name, node.id, child));
-              } catch (e) {
-                setError((e as Error).message);
-              }
-          }}
-        >
-          Add child
-        </button>
+        <div className="node-actions">
+          <button
+            onClick={async () => {
+              const child = prompt("Name for the new sub-system node");
+              if (child)
+                try {
+                  refresh(await api.createNode(project.name, node.id, child));
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+            }}
+          >
+            Add child
+          </button>
+          {node.parentId && (
+            <button
+              className="danger"
+              onClick={async () => {
+                const claimsWarning = node.directClaimCount
+                  ? ` Its ${node.directClaimCount} ${node.directClaimCount === 1 ? "claim" : "claims"} will be moved to the parent node.`
+                  : "";
+                if (!confirm(`Delete ${node.name}?${claimsWarning}`)) return;
+                try {
+                  const parentId = node.parentId!;
+                  refresh(await api.deleteNode(project.name, node.id));
+                  onSelect(parentId);
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </header>
       <section>
         <h2>Claims</h2>
