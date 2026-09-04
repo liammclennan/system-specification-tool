@@ -1,4 +1,4 @@
-import type { Project } from "../shared/types.ts";
+import type { Project, VerificationTestFile } from "../shared/types.ts";
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) }, ...init });
   if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error ?? "Request failed");
@@ -9,6 +9,7 @@ export const api = {
   projects: () => request<string[]>("/api/projects"),
   createProject: (name: string) => request<Project>("/api/projects", { method: "POST", body: JSON.stringify({ name }) }),
   project: (name: string) => request<Project>(`/api/projects/${encodeURIComponent(name)}`),
+  testResults: (name: string) => request<VerificationTestFile[]>(`/api/projects/${encodeURIComponent(name)}/test-results`),
   createNode: (project: string, parentId: string, name: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes`, { method: "POST", body: JSON.stringify({ parentId, name }) }),
   updateNode: (project: string, id: string, changes: object) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${id}`, { method: "PATCH", body: JSON.stringify(changes) }),
   moveNode: (project: string, id: string, parentId: string) => request<Project>(`/api/projects/${encodeURIComponent(project)}/nodes/${id}/move`, { method: "POST", body: JSON.stringify({ parentId }) }),

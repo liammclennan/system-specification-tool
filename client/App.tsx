@@ -11,6 +11,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ReactMarkdown, { type Components } from "react-markdown";
 import type { NodeRecord, Project } from "../shared/types.ts";
 import { api } from "./api.ts";
+import { TestResultsView } from "./TestResultsView.tsx";
 
 function findNode(node: NodeRecord, id: string): NodeRecord | undefined {
   return node.id === id
@@ -118,6 +119,12 @@ function RenderedSpecification({ projectName }: { projectName: string }) {
     h6: ({ node, ...props }) => <h6 id={headingId(node)} {...props} />,
   };
   return <main className="rendered-specification"><a href="/">← Back to application</a>{error ? <p className="error">{error}</p> : markdown ? <div className="rendered-specification-layout"><aside className="table-of-contents"><strong>Contents</strong><nav aria-label="Table of contents">{contents.map((heading) => <a key={`${heading.line}-${heading.id}`} href={`#${heading.id}`} style={{ paddingLeft: `${(heading.level - 1) * .75}rem` }}>{heading.text}</a>)}</nav></aside><article><ReactMarkdown components={components}>{markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}</ReactMarkdown></article></div> : <p>Loading specification…</p>}</main>;
+}
+function TestResultsPage({ projectName }: { projectName: string }) {
+  const [files, setFiles] = useState<Awaited<ReturnType<typeof api.testResults>>>();
+  const [error, setError] = useState("");
+  useEffect(() => { void api.testResults(projectName).then(setFiles).catch((reason: Error) => setError(reason.message)); }, [projectName]);
+  return <main className="test-results-page"><a href="/">← Back to application</a><h1>Test results</h1><p className="hint">Tests used to verify {projectName}, grouped by result file.</p>{error ? <p className="error">{error}</p> : files ? <TestResultsView files={files} /> : <p>Loading test results…</p>}</main>;
 }
 function TreeNode({
   node,
@@ -643,6 +650,7 @@ function WorkspaceApp() {
                 <div className="specification-menu-items">
                   <a href="/">Specification</a>
                   <a href={`/specification/${encodeURIComponent(project.name)}`}>Rendered</a>
+                  <a href={`/test-results/${encodeURIComponent(project.name)}`}>Test results</a>
                 </div>
               </details>
               <strong>{project.name}</strong>
@@ -746,6 +754,11 @@ function WorkspaceApp() {
   );
 }
 export function App() {
+  const testsMatch = window.location.pathname.match(/^\/test-results\/([^/]+)\/?$/);
+  if (testsMatch) {
+    try { return <TestResultsPage projectName={decodeURIComponent(testsMatch[1])} />; }
+    catch { return <main className="test-results-page"><a href="/">← Back to application</a><p className="error">The test-results URL is invalid.</p></main>; }
+  }
   const match = window.location.pathname.match(/^\/specification\/([^/]+)\/?$/);
   if (match) {
     try { return <RenderedSpecification projectName={decodeURIComponent(match[1])} />; }

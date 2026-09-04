@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
-import type { Claim, NodeRecord, Project, TestResultsFile, VerificationStatus } from "../shared/types.ts";
+import type { Claim, NodeRecord, Project, TestResultsFile, VerificationStatus, VerificationTestFile } from "../shared/types.ts";
 
 type NodeMeta = { id: string; name: string; parentId: string | null };
 type Manifest = { formatVersion: 1; rootNodeId: string };
@@ -64,6 +64,26 @@ function parseGoTestAssertions(output: string): TestAssertion[] {
     } catch { /* Ignore non-event lines in JSON-lines output. */ }
   }
   return assertions;
+}
+const supportedTestResult = /\.(?:json|jsonl|ndjson|xml|junit|trx|tap|txt|log)$/i;
+async function collectTestResultFiles(candidate: string, files: string[] = []): Promise<string[]> {
+  let info; try { info = await stat(candidate); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return files; throw error; }
+  if (info.isFile()) files.push(candidate);
+  else if (info.isDirectory()) for (const entry of await readdir(candidate, { withFileTypes: true })) await collectTestResultFiles(join(candidate, entry.name), files);
+  return files;
+}
+function parseTestAssertions(file: string, raw: string): TestAssertion[] {
+  if (/\.trx$/i.test(file)) return parseTrxAssertions(raw);
+  if (/\.tap$/i.test(file)) return parseTapAssertions(raw);
+  if (/\.(?:txt|log)$/i.test(file)) return parseCargoAssertions(raw);
+  if (/\.(?:xml|junit)$/i.test(file)) return parseXunitAssertions(raw);
+  let report: { testResults?: { assertionResults?: { fullName?: string; title?: string; status?: string }[] }[] };
+  try { report = JSON.parse(raw); } catch {
+    const assertions = parseGoTestAssertions(raw);
+    if (assertions.length) return assertions;
+    throw new StorageError(`Test results file ${file} is not valid JSON`);
+  }
+  return report.testResults?.flatMap((suite) => suite.assertionResults?.map((assertion) => ({ name: assertion.fullName ?? assertion.title ?? "", status: assertion.status ?? "" })) ?? []) ?? [];
 }
 
 export class StorageError extends Error { status = 400; }
@@ -145,7 +165,7 @@ export class ProjectStorage {
     const absoluteOffset = Math.abs(offsetMinutes);
     const localTimestamp = `${createdAt.getFullYear()}-${pad(createdAt.getMonth() + 1)}-${pad(createdAt.getDate())} ${pad(createdAt.getHours())}:${pad(createdAt.getMinutes())}:${pad(createdAt.getSeconds())} ${offsetSign}${pad(Math.floor(absoluteOffset / 60))}:${pad(absoluteOffset % 60)}`;
     const renderNode = (node: NodeRecord, depth: number): string => {
-      const claims = node.claims.map((claim) => `- **${claim.ignored ? "ignored" : claim.verification}** — ${claim.text.replace(/\n/g, "\n  ")}`).join("\n");
+      const claims = node.claims.map((claim) => `- **${claim.ignored ? "ignored" : claim.verification}** — [${claim.shortId}] ${claim.text.replace(/\n/g, "\n  ")}`).join("\n");
       const content = node.content.trim();
       return [
         `${"#".repeat(depth + 1)} ${node.name}`,
@@ -288,28 +308,21 @@ export class ProjectStorage {
     const path = this.safeProject(project); const files = await readdir(join(path, "test-results")); const file = files.find((entry) => entry.startsWith(`${id}__`));
     if (nodeId !== (await this.readManifest(path)).rootNodeId || !file) throw new StorageError("Test results file was not found"); await unlink(join(path, "test-results", file)); return this.openProject(project);
   }
+  async verificationTests(resultsPath: string): Promise<VerificationTestFile[]> {
+    const root = resolve(resultsPath);
+    const files = (await collectTestResultFiles(root)).filter((file) => supportedTestResult.test(file)).sort();
+    return Promise.all(files.map(async (file) => {
+      const info = await stat(file);
+      return {
+        fileName: relative(root, file) || basename(file),
+        modifiedAt: info.mtime.toISOString(),
+        tests: parseTestAssertions(file, await readFile(file, "utf8")).map((test) => ({ name: test.name, status: test.status === "failed" ? "failed" as const : test.status === "passed" ? "passed" as const : "ignored" as const })),
+      };
+    }));
+  }
   async verify(project: string, resultsPath = join(this.safeProject(project), "test-results")) {
-    const path = this.safeProject(project); const loaded = await this.load(path); const files: string[] = [];
-    const collect = async (candidate: string) => { let info; try { info = await stat(candidate); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; } if (info.isFile()) files.push(candidate); else if (info.isDirectory()) for (const entry of await readdir(candidate, { withFileTypes: true })) await collect(join(candidate, entry.name)); };
-    await collect(resolve(resultsPath));
-    const assertions: { name: string; status: string }[] = [];
-    try {
-      for (const file of files) {
-        if (!/\.(?:json|jsonl|ndjson|xml|junit|trx|tap|txt|log)$/i.test(file)) continue;
-        const raw = await readFile(file, "utf8");
-        if (/\.trx$/i.test(file)) { assertions.push(...parseTrxAssertions(raw)); continue; }
-        if (/\.tap$/i.test(file)) { assertions.push(...parseTapAssertions(raw)); continue; }
-        if (/\.(?:txt|log)$/i.test(file)) { assertions.push(...parseCargoAssertions(raw)); continue; }
-        if (/\.(?:xml|junit)$/i.test(file)) { assertions.push(...parseXunitAssertions(raw)); continue; }
-        let report: { testResults?: { assertionResults?: { fullName?: string; title?: string; status?: string }[] }[] };
-        try { report = JSON.parse(raw); } catch {
-          const goAssertions = parseGoTestAssertions(raw);
-          if (goAssertions.length > 0) { assertions.push(...goAssertions); continue; }
-          throw new StorageError(`Test results file ${file} is not valid JSON`);
-        }
-        report.testResults?.forEach((suite) => suite.assertionResults?.forEach((assertion) => assertions.push({ name: assertion.fullName ?? assertion.title ?? "", status: assertion.status ?? "" })));
-      }
-    } catch (error) { if (error instanceof StorageError) throw error; if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    const path = this.safeProject(project); const loaded = await this.load(path);
+    const assertions = (await this.verificationTests(resultsPath)).flatMap((file) => file.tests);
     await Promise.all(loaded.claims.map((claim) => {
       if (claim.ignored) return Promise.resolve();
       const matches = assertions.filter((assertion) => assertion.name.includes(claim.shortId));

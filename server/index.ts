@@ -37,6 +37,10 @@ app.get("/api/projects", (_req, res) => send(res, () => storage.listProjects()))
 app.get("/api/config", (_req, res) => res.json({ initialProject: startup.initialProject ?? null, verificationEnabled: Boolean(startup.testResultsPath) }));
 app.post("/api/projects", (req, res) => send(res, () => storage.createProject(req.body.name)));
 app.get("/api/projects/:project", (req, res) => send(res, () => storage.openProject(req.params.project)));
+app.get("/api/projects/:project/test-results", (req, res) => {
+  if (!startup.testResultsPath) return res.status(400).json({ error: "Restart with a --test-results path to view test results" });
+  return send(res, async () => { await storage.openProject(req.params.project as string); return storage.verificationTests(startup.testResultsPath!); });
+});
 app.post("/api/projects/:project/nodes", (req, res) => send(res, () => storage.createNode(req.params.project, req.body.parentId, req.body.name)));
 app.patch("/api/projects/:project/nodes/:id", (req, res) => send(res, () => storage.updateNode(req.params.project, req.params.id, req.body)));
 app.post("/api/projects/:project/nodes/:id/move", (req, res) => send(res, () => storage.moveNode(req.params.project, req.params.id, req.body.parentId)));

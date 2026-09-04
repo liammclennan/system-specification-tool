@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProjectStorage, StorageError } from "./storage.ts";
@@ -68,6 +68,16 @@ describe("ProjectStorage", () => {
     const remaining = await store.deleteTestResults("system", project.rootNodeId, one.testResults[0].id);
     expect(remaining.testResults.map((file) => file.fileName)).toEqual(["two.json"]);
   });
+  it("73ad 842d 8575 lists parsed verification tests by file with status and modified time", async () => {
+    const store = await fixture(); const results = join(roots[0], "results");
+    await mkdir(results);
+    await writeFile(join(results, "one.json"), JSON.stringify({ testResults: [{ assertionResults: [{ fullName: "passing test", status: "passed" }, { fullName: "failing test", status: "failed" }, { fullName: "ignored test", status: "pending" }] }] }));
+    await writeFile(join(results, "two.tap"), "TAP version 13\nok 1 - another test\n");
+    const files = await store.verificationTests(results);
+    expect(files.map((file) => file.fileName)).toEqual(["one.json", "two.tap"]);
+    expect(files[0].tests.map((test) => test.status)).toEqual(["passed", "failed", "ignored"]);
+    expect(files[0].modifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
   it("verifies matching claims and gives failing tests precedence", async () => {
     const store = await fixture(); let project = await store.createProject("system");
     project = await store.createClaim("system", project.rootNodeId, "The service responds.");
@@ -110,6 +120,7 @@ describe("ProjectStorage", () => {
     const store = await fixture(); let project = await store.createProject("system");
     project = await store.updateNode("system", project.rootNodeId, { content: "Root content." });
     project = await store.createClaim("system", project.rootNodeId, "Root claim.");
+    const rootClaimShortId = project.tree.claims[0].shortId;
     project = await store.createNode("system", project.rootNodeId, "First child");
     const firstChild = project.tree.children[0];
     project = await store.updateNode("system", firstChild.id, { content: "First child content." });
@@ -121,7 +132,7 @@ describe("ProjectStorage", () => {
     expect(markdown).toContain(`Specification file: \`${join(roots[0], "system", "specification.md")}\``);
     expect(markdown).toContain("\n\n# system\n");
     expect(markdown).toContain("**Verification status:** unverified");
-    expect(markdown).toContain("- **unverified** — Root claim.");
+    expect(markdown).toContain(`- **unverified** — [${rootClaimShortId}] Root claim.`);
     expect(markdown).toContain("**Content:**\n\nRoot content.");
     expect(markdown.match(/\*\*Claims:\*\*/g)).toHaveLength(1);
     expect(markdown).not.toContain("No claims");
