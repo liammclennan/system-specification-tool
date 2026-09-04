@@ -9,7 +9,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ReactMarkdown, { type Components } from "react-markdown";
-import type { NodeRecord, Project } from "../shared/types.ts";
+import type { NodeRecord, Project, VerificationTest } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { TestResultsView } from "./TestResultsView.tsx";
 
@@ -219,12 +219,14 @@ function TreeNode({
 function Detail({
   project,
   node,
+  tests,
   refresh,
   setError,
   onSelect,
 }: {
   project: Project;
   node: NodeRecord;
+  tests: VerificationTest[];
   refresh: (p: Project) => void;
   setError: (e: string) => void;
   onSelect: (id: string) => void;
@@ -277,7 +279,7 @@ function Detail({
             onChange={(e) => setName(e.target.value)}
             onBlur={() => name !== node.name && save({ name })}
           />
-          <p className="hint">Status: {node.verification}</p>
+          <p className="hint">ID: {node.shortId} · Status: {node.verification}</p>
         </div>
         <button
           onClick={async () => {
@@ -303,6 +305,7 @@ function Detail({
             <ClaimEditor
               key={item.id}
               item={item}
+              linkedTests={tests.filter((test) => test.name.includes(item.shortId))}
               project={project.name}
               refresh={refresh}
               setError={setError}
@@ -314,6 +317,12 @@ function Detail({
             ref={newClaimInput}
             value={claim}
             onChange={(e) => setClaim(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && claim.trim()) {
+                e.preventDefault();
+                void addClaim();
+              }
+            }}
             placeholder="Add a verifiable claim…"
           />
           <button disabled={!claim.trim()} onClick={addClaim}>
@@ -395,11 +404,13 @@ function Detail({
 }
 function ClaimEditor({
   item,
+  linkedTests,
   project,
   refresh,
   setError,
 }: {
   item: NodeRecord["claims"][number];
+  linkedTests: VerificationTest[];
   project: string;
   refresh: (p: Project) => void;
   setError: (e: string) => void;
@@ -454,7 +465,7 @@ function ClaimEditor({
         >
           ⠿
         </button>
-        {item.shortId} · {item.ignored ? "ignored" : item.verification}{" "}
+        {item.shortId}{" "}
         <button
           style={{ padding: ".15rem .3rem" }}
           onClick={copy}
@@ -463,19 +474,32 @@ function ClaimEditor({
         >
           {copied ? "✓" : "⧉"}
         </button>
+        {" "}· {item.ignored ? "ignored" : item.verification}
       </code>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={async () => {
-          if (text !== item.text)
-            try {
-              refresh(await api.updateClaim(project, item.id, text));
-            } catch (e) {
-              setError((e as Error).message);
-            }
-        }}
-      />
+      <div className="claim-content">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={async () => {
+            if (text !== item.text)
+              try {
+                refresh(await api.updateClaim(project, item.id, text));
+              } catch (e) {
+                setError((e as Error).message);
+              }
+          }}
+        />
+        {linkedTests.length > 0 && (
+          <details className="linked-tests">
+            <summary>{linkedTests.length} linked {linkedTests.length === 1 ? "test" : "tests"}</summary>
+            <ul>
+              {linkedTests.map((test, index) => (
+                <li key={`${test.name}-${index}`}><span>{test.name}</span><strong className={`test-status ${test.status}`}>{test.status}</strong></li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
       <div className="claim-actions">
         <button
           onClick={async () => {
@@ -519,6 +543,7 @@ function WorkspaceApp() {
   const [error, setError] = useState("");
   const [verificationNotice, setVerificationNotice] = useState("");
   const [verificationEnabled, setVerificationEnabled] = useState(false);
+  const [tests, setTests] = useState<VerificationTest[]>([]);
   const [verifying, setVerifying] = useState(false);
   const [sidebarSize] = useState(loadSidebarSize);
   const selectedNode = useMemo(
@@ -554,6 +579,12 @@ function WorkspaceApp() {
   useEffect(() => {
     if (project) saveExpandedNodes(project.name, expanded);
   }, [project?.name, expanded]);
+  useEffect(() => {
+    if (!project || !verificationEnabled) { setTests([]); return; }
+    void api.testResults(project.name)
+      .then((files) => setTests(files.flatMap((file) => file.tests)))
+      .catch((e) => setError((e as Error).message));
+  }, [project?.name, verificationEnabled]);
   const open = async (name: string) => {
     try {
       refresh(await api.project(name));
@@ -681,6 +712,7 @@ function WorkspaceApp() {
                     try {
                       const verifiedProject = await api.verify(project.name);
                       refresh(verifiedProject);
+                      setTests((await api.testResults(project.name)).flatMap((file) => file.tests));
                       const root = verifiedProject.tree;
                       const unverified = Math.max(
                         0,
@@ -728,6 +760,7 @@ function WorkspaceApp() {
                 key={selectedNode.id}
                 project={project}
                 node={selectedNode}
+                tests={tests}
                 refresh={refresh}
                 setError={setError}
                 onSelect={setSelected}

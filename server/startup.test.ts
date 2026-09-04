@@ -6,7 +6,7 @@ describe("resolveStartupConfiguration", () => {
   it("derives the workspace from the current directory when no project is supplied 946c", () => {
     expect(resolveStartupConfiguration(["--test-results", results], undefined, "/workspace/specification")).toEqual({ workspaceRoot: "/workspace", initialProject: "specification", initialProjectPath: "/workspace/specification", port: 5173, testResultsPath: results });
   });
-  it("uses a project argument as the initial project and scopes the workspace to its parent", () => {
+  it("1760 uses a project argument as the initial project and scopes the workspace to its parent", () => {
     expect(resolveStartupConfiguration(["/repositories/payments-spec", "--test-results", "/results"])).toMatchObject({ workspaceRoot: "/repositories", initialProject: "payments-spec", initialProjectPath: "/repositories/payments-spec", testResultsPath: "/results" });
   });
   it("accepts the --project option used by the command-line executable 1760", () => {

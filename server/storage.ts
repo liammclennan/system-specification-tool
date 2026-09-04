@@ -88,6 +88,15 @@ function parseTestAssertions(file: string, raw: string): TestAssertion[] {
 
 export class StorageError extends Error { status = 400; }
 
+export function uniqueShortIdentifier(id: string, used: Set<string>) {
+  const hash = createHash("sha256").update(id).digest("hex");
+  for (let length = 4; length <= hash.length; length++) {
+    const candidate = hash.slice(0, length);
+    if (!used.has(candidate)) { used.add(candidate); return candidate; }
+  }
+  throw new StorageError("Unable to generate unique short identifier");
+}
+
 export class ProjectStorage {
   constructor(private readonly root: string) {}
 
@@ -103,12 +112,7 @@ export class ProjectStorage {
     await rename(temp, path);
   }
   private short(id: string, used: Set<string>) {
-    const hash = createHash("sha256").update(id).digest("hex");
-    for (let length = 4; length <= hash.length; length++) {
-      const candidate = hash.slice(0, length);
-      if (!used.has(candidate)) { used.add(candidate); return candidate; }
-    }
-    throw new StorageError("Unable to generate unique short identifier");
+    return uniqueShortIdentifier(id, used);
   }
   async listProjects() {
     await mkdir(this.root, { recursive: true });

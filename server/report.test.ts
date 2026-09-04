@@ -7,7 +7,7 @@ const node = (name: string, claims: Claim[], children: NodeRecord[] = []): NodeR
 const project = (tree: NodeRecord): Project => ({ id: "system", name: "system", rootNodeId: tree.id, tree, testResults: [] });
 
 describe("verificationReport", () => {
-  it("reports outstanding claims with their node and exits with code 1", () => {
+  it("abb0 ddba reports outstanding claims with their node and exits with code 1", () => {
     const result = verificationReport(project(node("System", [claim("ok", "verified"), claim("skip", "failed", true)], [node("Payments", [claim("bad", "failed"), claim("todo", "unverified")])])));
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain("Failing claims: 1\nUnverified claims: 1\nIgnored claims: 1\nVerified claims: 1");
@@ -15,7 +15,7 @@ describe("verificationReport", () => {
     expect(result.output).toContain("- Unverified — Payments: [todo] todo claim");
   });
 
-  it("exits with code 0 when every claim is verified or ignored", () => {
+  it("ddba exits with code 0 when every claim is verified or ignored", () => {
     const result = verificationReport(project(node("System", [claim("ok", "verified"), claim("skip", "unverified", true)])));
     expect(result.exitCode).toBe(0);
     expect(result.output).not.toContain("Failing and unverified claims:");
