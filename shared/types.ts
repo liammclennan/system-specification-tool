@@ -46,3 +46,22 @@ export interface VerificationTestFile {
   modifiedAt: string;
   tests: VerificationTest[];
 }
+
+export function findNode(node: NodeRecord, id: string): NodeRecord | undefined {
+  return node.id === id ? node : node.children.map((child) => findNode(child, id)).find(Boolean);
+}
+export function allNodeIds(node: NodeRecord): string[] {
+  return [node.id, ...node.children.flatMap(allNodeIds)];
+}
+export function countFailedClaims(node: NodeRecord): number {
+  return (
+    node.claims.filter((claim) => claim.verification === "failed").length +
+    node.children.reduce((total, child) => total + countFailedClaims(child), 0)
+  );
+}
+export function countIgnoredClaims(node: NodeRecord): number {
+  return (
+    node.claims.filter((claim) => claim.ignored).length +
+    node.children.reduce((total, child) => total + countIgnoredClaims(child), 0)
+  );
+}

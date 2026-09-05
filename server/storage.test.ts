@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { ProjectStorage, StorageError, uniqueShortIdentifier } from "./storage.ts";
+import { verificationTests } from "./test-results.ts";
 
 const roots: string[] = [];
 class TestProjectStorage extends ProjectStorage {
@@ -207,7 +208,7 @@ describe("ProjectStorage", () => {
       }),
     );
     await writeFile(join(results, "two.tap"), "TAP version 13\nok 1 - another test\n");
-    const files = await store.verificationTests(results);
+    const files = await verificationTests(results);
     expect(files.map((file) => file.fileName)).toEqual(["one.json", "two.tap"]);
     expect(files[0].tests.map((test) => test.status)).toEqual(["passed", "failed", "ignored"]);
     expect(files[0].modifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);

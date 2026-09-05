@@ -5,6 +5,7 @@ import { createServer as createHttpServer } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ProjectStorage, StorageError } from "./storage.ts";
+import { TestResultsError, verificationTests } from "./test-results.ts";
 import { verificationReport } from "./report.ts";
 import { isHelpRequested, HELP_TEXT, resolveStartupConfiguration } from "./startup.ts";
 
@@ -47,7 +48,7 @@ const send = (res: express.Response, action: () => Promise<unknown>) =>
     .then((data) => res.json(data))
     .catch((error) =>
       res
-        .status(error instanceof StorageError ? error.status : 500)
+        .status(error instanceof StorageError || error instanceof TestResultsError ? error.status : 500)
         .json({ error: error.message || "Unexpected server error" }),
     );
 
@@ -69,7 +70,7 @@ app.get("/api/projects/:project/test-results", (req, res) => {
       .json({ error: "Restart with a --test-results path to view test results" });
   return send(res, async () => {
     await storage.openProject(req.params.project as string);
-    return storage.verificationTests(startup.testResultsPath!);
+    return verificationTests(startup.testResultsPath!);
   });
 });
 app.post("/api/projects/:project/nodes", (req, res) =>

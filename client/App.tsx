@@ -11,28 +11,10 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ReactMarkdown, { type Components } from "react-markdown";
-import type { NodeRecord, Project, VerificationTest } from "../shared/types.ts";
+import { allNodeIds, countFailedClaims, countIgnoredClaims, findNode, type NodeRecord, type Project, type VerificationTest } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { TestResultsView } from "./TestResultsView.tsx";
 
-function findNode(node: NodeRecord, id: string): NodeRecord | undefined {
-  return node.id === id ? node : node.children.map((child) => findNode(child, id)).find(Boolean);
-}
-function allNodeIds(node: NodeRecord): string[] {
-  return [node.id, ...node.children.flatMap(allNodeIds)];
-}
-function countFailedClaims(node: NodeRecord): number {
-  return (
-    node.claims.filter((claim) => claim.verification === "failed").length +
-    node.children.reduce((total, child) => total + countFailedClaims(child), 0)
-  );
-}
-function countIgnoredClaims(node: NodeRecord): number {
-  return (
-    node.claims.filter((claim) => claim.ignored).length +
-    node.children.reduce((total, child) => total + countIgnoredClaims(child), 0)
-  );
-}
 const collisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   return pointerCollisions.length ? pointerCollisions : closestCenter(args);
