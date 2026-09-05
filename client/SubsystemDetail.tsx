@@ -222,12 +222,12 @@ function ClaimEditor({
   useEffect(() => setText(item.text), [item]);
   const sortable = useSortable({ id: `claim-${item.id}` });
   const statusStyle = item.ignored
-    ? { borderLeft: "4px solid #788596", background: "#f1f3f6" }
+    ? { borderLeft: "4px solid var(--muted)", background: "var(--surface-hover)" }
     : item.verification === "verified"
-      ? { borderLeft: "4px solid #20824a", background: "#effaf3" }
+      ? { borderLeft: "4px solid var(--green)", background: "var(--green-bg)" }
       : item.verification === "failed"
-        ? { borderLeft: "4px solid #c43d4b", background: "#fff2f3" }
-        : { borderLeft: "4px solid #c78813", background: "#fffaec" };
+        ? { borderLeft: "4px solid var(--red)", background: "var(--red-bg)" }
+        : { borderLeft: "4px solid var(--amber)", background: "var(--amber-bg)" };
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(item.shortId);

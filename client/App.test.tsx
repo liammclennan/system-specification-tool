@@ -180,6 +180,14 @@ afterEach(() => {
 });
 
 describe("workspace interface specification", () => {
+  it("defaults to the light theme and allows switching to dark", async () => {
+    await renderWorkspace();
+    expect(document.documentElement.dataset.theme).toBe("light");
+    await userEvent.click(screen.getByRole("button", { name: "Use dark theme" }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(screen.getByRole("button", { name: "Use light theme" })).not.toBeNull();
+  });
+
   it("cfbf organizes the application into left and right panes", async () => {
     await renderWorkspace();
     expect(screen.getByTestId("panel-group").getAttribute("data-direction")).toBe("horizontal");

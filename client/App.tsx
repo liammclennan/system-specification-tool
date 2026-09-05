@@ -137,7 +137,7 @@ function TreeNode({
             height: "1.1rem",
             flex: "0 0 1.1rem",
             borderRadius: "50%",
-            background: `conic-gradient(#20824a 0 ${verifiedPercentage}%, #c43d4b ${verifiedPercentage}% ${verifiedPercentage + failedPercentage}%, #d4dce7 ${verifiedPercentage + failedPercentage}% 100%)`,
+            background: `conic-gradient(var(--green) 0 ${verifiedPercentage}%, var(--red) ${verifiedPercentage}% ${verifiedPercentage + failedPercentage}%, var(--muted) ${verifiedPercentage + failedPercentage}% 100%)`,
           }}
         />
         <button
@@ -409,25 +409,42 @@ function WorkspaceApp() {
   );
 }
 export function App() {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try {
+      return localStorage.getItem("system-specification-tool.theme") === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("system-specification-tool.theme", theme);
+    } catch {
+      // Continue with the in-memory preference when storage is unavailable.
+    }
+  }, [theme]);
+  let page: React.ReactNode;
   const testsMatch = window.location.pathname.match(/^\/test-results\/([^/]+)\/?$/);
   if (testsMatch) {
     try {
-      return <TestResultsPage projectName={decodeURIComponent(testsMatch[1])} />;
+      page = <TestResultsPage projectName={decodeURIComponent(testsMatch[1])} />;
     } catch {
-      return (
+      page = (
         <main className="test-results-page">
           <a href="/">← Back to application</a>
           <p className="error">The test-results URL is invalid.</p>
         </main>
       );
     }
-  }
-  const match = window.location.pathname.match(/^\/specification\/([^/]+)\/?$/);
-  if (match) {
+  } else {
+    const match = window.location.pathname.match(/^\/specification\/([^/]+)\/?$/);
+    if (!match) page = <WorkspaceApp />;
+    else
     try {
-      return <RenderedSpecification projectName={decodeURIComponent(match[1])} />;
+      page = <RenderedSpecification projectName={decodeURIComponent(match[1])} />;
     } catch {
-      return (
+      page = (
         <main className="rendered-specification">
           <a href="/">← Back to application</a>
           <p className="error">The specification URL is invalid.</p>
@@ -435,5 +452,16 @@ export function App() {
       );
     }
   }
-  return <WorkspaceApp />;
+  return (
+    <>
+      {page}
+      <button
+        className="theme-toggle"
+        aria-label={`Use ${theme === "light" ? "dark" : "light"} theme`}
+        onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
+      >
+        {theme === "light" ? "Dark theme" : "Light theme"}
+      </button>
+    </>
+  );
 }
