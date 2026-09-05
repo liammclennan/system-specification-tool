@@ -12,7 +12,7 @@ import { allNodeIds, countFailedClaims, countIgnoredClaims, findNode, type NodeR
 import { api } from "./api.ts";
 import { TestResultsView } from "./TestResultsView.tsx";
 import { RenderedSpecification } from "./RenderedSpecification.tsx";
-import { Detail } from "./Detail.tsx";
+import { SubsystemDetail } from "./SubsystemDetail.tsx";
 
 const collisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
@@ -382,7 +382,7 @@ function WorkspaceApp() {
           <PanelResizeHandle className="resize" />
           <Panel minSize={40}>
             {selectedNode && (
-              <Detail
+              <SubsystemDetail
                 key={selectedNode.id}
                 project={project}
                 node={selectedNode}

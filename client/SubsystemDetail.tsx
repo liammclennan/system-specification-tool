@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import type { NodeRecord, Project, VerificationTest } from "../shared/types.ts";
 import { api } from "./api.ts";
 
-export function Detail({
+export function SubsystemDetail({
   project,
   node,
   tests,
