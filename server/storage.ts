@@ -1,7 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
-import type { Claim, NodeRecord, Project, TestResultsFile, VerificationStatus } from "../shared/types.ts";
+import type {
+  Claim,
+  NodeRecord,
+  Project,
+  TestResultsFile,
+  VerificationStatus,
+} from "../shared/types.ts";
 import { verificationTests } from "./test-results.ts";
 
 type NodeMeta = { id: string; name: string; parentId: string | null };

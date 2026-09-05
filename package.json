@@ -1,6 +1,6 @@
 {
   "name": "system-specification-tool",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "bin": {
     "system-specification-tool": "bin/system-specification-tool.mjs"
@@ -18,9 +18,9 @@
     "dev": "tsx server/dev.ts --",
     "build": "tsc --noEmit && vite build",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "prestart": "npm run build",
     "start": "tsx server/index.ts",
+    "pretest": "npm run format",
     "test": "vitest run --reporter=default --exclude=test/guess-demo-node --reporter=json --outputFile=test/test-results/test-results.json && npm start -- --print --test-results ./test/test-results --project ./specification/System-Specification-Tool",
     "self": "npm run dev -- --project ./specification/System-Specification-Tool --test-results ./test/test-results"
   },

@@ -8,7 +8,15 @@ import {
 } from "@dnd-kit/core";
 import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { allNodeIds, countFailedClaims, countIgnoredClaims, findNode, type NodeRecord, type Project, type VerificationTest } from "../shared/types.ts";
+import {
+  allNodeIds,
+  countFailedClaims,
+  countIgnoredClaims,
+  findNode,
+  type NodeRecord,
+  type Project,
+  type VerificationTest,
+} from "../shared/types.ts";
 import { api } from "./api.ts";
 import { TestResultsView } from "./TestResultsView.tsx";
 import { RenderedSpecification } from "./RenderedSpecification.tsx";
@@ -441,16 +449,16 @@ export function App() {
     const match = window.location.pathname.match(/^\/specification\/([^/]+)\/?$/);
     if (!match) page = <WorkspaceApp />;
     else
-    try {
-      page = <RenderedSpecification projectName={decodeURIComponent(match[1])} />;
-    } catch {
-      page = (
-        <main className="rendered-specification">
-          <a href="/">← Back to application</a>
-          <p className="error">The specification URL is invalid.</p>
-        </main>
-      );
-    }
+      try {
+        page = <RenderedSpecification projectName={decodeURIComponent(match[1])} />;
+      } catch {
+        page = (
+          <main className="rendered-specification">
+            <a href="/">← Back to application</a>
+            <p className="error">The specification URL is invalid.</p>
+          </main>
+        );
+      }
   }
   return (
     <>
@@ -458,7 +466,7 @@ export function App() {
       <button
         className="theme-toggle"
         aria-label={`Use ${theme === "light" ? "dark" : "light"} theme`}
-        onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
+        onClick={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
       >
         {theme === "light" ? "Dark theme" : "Light theme"}
       </button>

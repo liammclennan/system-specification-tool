@@ -28,12 +28,14 @@ function tableOfContents(markdown: string): TableOfContentsEntry[] {
         .replace(/^-|-$/g, "") || "section";
     const occurrence = used.get(base) ?? 0;
     used.set(base, occurrence + 1);
-    return [{
-      level: match[1].length,
-      text,
-      id: occurrence ? `${base}-${occurrence + 1}` : base,
-      line: index + 1,
-    }];
+    return [
+      {
+        level: match[1].length,
+        text,
+        id: occurrence ? `${base}-${occurrence + 1}` : base,
+        line: index + 1,
+      },
+    ];
   });
 }
 
@@ -57,7 +59,9 @@ export function RenderedSpecification({ projectName }: { projectName: string }) 
         if (active) setError((reason as Error).message);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [projectName]);
   const contents = useMemo(() => tableOfContents(markdown), [markdown]);
   const headingIds = useMemo(
@@ -85,7 +89,11 @@ export function RenderedSpecification({ projectName }: { projectName: string }) 
             <strong>Contents</strong>
             <nav aria-label="Table of contents">
               {contents.map((heading) => (
-                <a key={`${heading.line}-${heading.id}`} href={`#${heading.id}`} style={{ paddingLeft: `${(heading.level - 1) * 0.75}rem` }}>
+                <a
+                  key={`${heading.line}-${heading.id}`}
+                  href={`#${heading.id}`}
+                  style={{ paddingLeft: `${(heading.level - 1) * 0.75}rem` }}
+                >
                   {heading.text}
                 </a>
               ))}
@@ -93,7 +101,10 @@ export function RenderedSpecification({ projectName }: { projectName: string }) 
           </aside>
           <article>
             <ReactMarkdown components={components}>
-              {markdown.replaceAll("../assets/", `/projects/${encodeURIComponent(projectName)}/assets/`)}
+              {markdown.replaceAll(
+                "../assets/",
+                `/projects/${encodeURIComponent(projectName)}/assets/`,
+              )}
             </ReactMarkdown>
           </article>
         </div>

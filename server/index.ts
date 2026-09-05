@@ -48,7 +48,9 @@ const send = (res: express.Response, action: () => Promise<unknown>) =>
     .then((data) => res.json(data))
     .catch((error) =>
       res
-        .status(error instanceof StorageError || error instanceof TestResultsError ? error.status : 500)
+        .status(
+          error instanceof StorageError || error instanceof TestResultsError ? error.status : 500,
+        )
         .json({ error: error.message || "Unexpected server error" }),
     );
 

@@ -2,9 +2,9 @@
 
 [![Test](https://github.com/liammclennan/system-specification-tool/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/liammclennan/system-specification-tool/actions/workflows/test.yml)
 
-This project is a web application that you run locally to develop and verify your system specification. Verification is done by linking claims about sub systems to the results of automated tests. 
+This project is a web application that you run locally to develop and verify your system specification. Verification is done by linking claims about sub systems to the results of automated tests.
 
-There is also a non-interactive mode (--print) to be used in automated testing and continuous integration scenarios. 
+There is also a non-interactive mode (--print) to be used in automated testing and continuous integration scenarios.
 
 ## CLI help
 
