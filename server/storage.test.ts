@@ -1,15 +1,31 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { ProjectStorage, StorageError, uniqueShortIdentifier } from "./storage.ts";
 
 const roots: string[] = [];
+class TestProjectStorage extends ProjectStorage {
+  constructor(private readonly testRoot: string) {
+    super(testRoot);
+  }
+  async saveTestResults(
+    project: string,
+    _nodeId: string,
+    file: { buffer: Buffer; mimetype: string; originalname: string },
+  ) {
+    const directory = join(this.testRoot, project, "test-results");
+    await mkdir(directory, { recursive: true });
+    const name = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
+    await writeFile(join(directory, `${randomUUID()}__${name}`), file.buffer);
+    return this.openProject(project);
+  }
+}
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "spec-tool-"));
   roots.push(root);
-  return new ProjectStorage(root);
+  return new TestProjectStorage(root);
 }
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
@@ -171,53 +187,6 @@ describe("ProjectStorage", () => {
     expect(await readFile(join(roots[0], "system", reference.replace("../", "")), "utf8")).toBe(
       "image",
     );
-  });
-  it("stores a valid test-results file only for the root node", async () => {
-    const store = await fixture();
-    let project = await store.createProject("system");
-    const file = {
-      buffer: Buffer.from('{"success":true}'),
-      mimetype: "application/json",
-      originalname: "unit-results.json",
-    };
-    const withResults = await store.saveTestResults("system", project.rootNodeId, file);
-    expect(withResults.testResults).toHaveLength(1);
-    expect(
-      await readFile(
-        join(
-          roots[0],
-          "system",
-          "test-results",
-          `${withResults.testResults[0].id}__unit-results.json`,
-        ),
-        "utf8",
-      ),
-    ).toBe('{"success":true}');
-    project = await store.createNode("system", project.rootNodeId, "Child");
-    await expect(
-      store.saveTestResults("system", project.tree.children[0].id, file),
-    ).rejects.toBeInstanceOf(StorageError);
-  });
-  it("keeps multiple test-results files and deletes one by ID", async () => {
-    const store = await fixture();
-    const project = await store.createProject("system");
-    const one = await store.saveTestResults("system", project.rootNodeId, {
-      buffer: Buffer.from("{}"),
-      mimetype: "application/json",
-      originalname: "one.json",
-    });
-    const two = await store.saveTestResults("system", project.rootNodeId, {
-      buffer: Buffer.from("{}"),
-      mimetype: "application/json",
-      originalname: "two.json",
-    });
-    expect(two.testResults).toHaveLength(2);
-    const remaining = await store.deleteTestResults(
-      "system",
-      project.rootNodeId,
-      one.testResults[0].id,
-    );
-    expect(remaining.testResults.map((file) => file.fileName)).toEqual(["two.json"]);
   });
   it("73ad 842d 8575 lists parsed verification tests by file with status and modified time", async () => {
     const store = await fixture();

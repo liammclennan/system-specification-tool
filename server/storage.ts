@@ -569,31 +569,6 @@ export class ProjectStorage {
     await writeFile(join(path, "assets", `${id}${extension}`), file.buffer);
     return `../assets/${id}${extension}`;
   }
-  /** Legacy persistence helper; test-result uploads are intentionally not routed by the application. */
-  async saveTestResults(
-    project: string,
-    nodeId: string,
-    file: { buffer: Buffer; mimetype: string; originalname: string },
-  ) {
-    const path = this.safeProject(project);
-    const manifest = await this.readManifest(path);
-    if (nodeId !== manifest.rootNodeId)
-      throw new StorageError("Test results can only be attached to the top-level node");
-    await mkdir(join(path, "test-results"), { recursive: true });
-    const id = randomUUID();
-    const name = basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
-    await this.atomic(join(path, "test-results", `${id}__${name}`), file.buffer.toString("utf8"));
-    return this.openProject(project);
-  }
-  async deleteTestResults(project: string, nodeId: string, id: string) {
-    const path = this.safeProject(project);
-    const files = await readdir(join(path, "test-results"));
-    const file = files.find((entry) => entry.startsWith(`${id}__`));
-    if (nodeId !== (await this.readManifest(path)).rootNodeId || !file)
-      throw new StorageError("Test results file was not found");
-    await unlink(join(path, "test-results", file));
-    return this.openProject(project);
-  }
   async verificationTests(resultsPath: string): Promise<VerificationTestFile[]> {
     const root = resolve(resultsPath);
     const files = (await collectTestResultFiles(root))
