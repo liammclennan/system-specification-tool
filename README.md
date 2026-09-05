@@ -47,6 +47,10 @@ Create your specification, including verifiable claims. Copy the short identifie
 
 For non-interactive verification, use `--print`. This regenerates `specification.md`, prints claim totals and details for failing or unverified claims, and does not start the web server. It exits with code 0 when every claim is verified or ignored, and code 1 otherwise:
 
+```sh
+system-specification-tool --print --test-results <directory containing test output files> --project <directory containing specification>
+```
+
 ## Test output file support
 
 Supported formats are JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo test output, and Go `test -json`. Files are read from the configured test-results path. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
