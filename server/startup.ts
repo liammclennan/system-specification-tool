@@ -1,4 +1,9 @@
 import { basename, dirname, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+
+export function getVersion(): string {
+  return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+}
 
 export interface StartupConfiguration {
   workspaceRoot: string;
@@ -19,6 +24,7 @@ Options:
   --port <number>        Web server port (default: 5173)
   --print                Verify, print a claim report, and exit without starting the server
   --help                 Show this help message
+  --version              Show the installed version
 
 Environment:
   SYSTEM_SPECIFICATION_TOOL_PROJECT

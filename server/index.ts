@@ -7,12 +7,16 @@ import { fileURLToPath } from "node:url";
 import { ProjectStorage, StorageError } from "./storage.ts";
 import { TestResultsError, verificationTests } from "./test-results.ts";
 import { verificationReport } from "./report.ts";
-import { isHelpRequested, HELP_TEXT, resolveStartupConfiguration } from "./startup.ts";
+import { isHelpRequested, getVersion, HELP_TEXT, resolveStartupConfiguration } from "./startup.ts";
 
 const app = express();
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 if (isHelpRequested(process.argv.slice(2))) {
   console.log(HELP_TEXT);
+  process.exit(0);
+}
+if (process.argv.slice(2).includes("--version")) {
+  console.log(getVersion());
   process.exit(0);
 }
 let startup;

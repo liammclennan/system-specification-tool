@@ -1,13 +1,17 @@
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HELP_TEXT, isHelpRequested, resolveStartupConfiguration } from "./startup.ts";
+import { HELP_TEXT, getVersion, isHelpRequested, resolveStartupConfiguration } from "./startup.ts";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const executable = (name: string) => join(packageRoot, "node_modules", ".bin", name);
 const projectArgument = process.argv.slice(2);
 if (isHelpRequested(projectArgument)) {
   console.log(HELP_TEXT);
+  process.exit(0);
+}
+if (projectArgument.includes("--version")) {
+  console.log(getVersion());
   process.exit(0);
 }
 try {
