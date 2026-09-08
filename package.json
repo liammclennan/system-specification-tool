@@ -1,6 +1,24 @@
 {
   "name": "system-specification-tool",
   "version": "0.3.2",
+  "description": "Develop system specifications locally and verify their claims against automated test results.",
+  "keywords": [
+    "system-specification",
+    "specification",
+    "verification",
+    "automated-testing",
+    "test-results",
+    "cli"
+  ],
+  "author": "Liam McLennan",
+  "homepage": "https://github.com/liammclennan/system-specification-tool#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liammclennan/system-specification-tool.git"
+  },
+  "bugs": {
+    "url": "https://github.com/liammclennan/system-specification-tool/issues"
+  },
   "type": "module",
   "bin": {
     "system-specification-tool": "bin/system-specification-tool.mjs"
