@@ -29,12 +29,19 @@ try {
   process.exit(1);
 }
 const storage = new ProjectStorage(startup.workspaceRoot);
+try {
+  await storage.ensureProject(startup.initialProject!);
+} catch (error) {
+  console.error(
+    `Error: Cannot open project directory "${startup.initialProjectPath}": ${(error as Error).message}\nUse --project <path> to select a valid specification directory, or an empty directory to create a new project.`,
+  );
+  process.exit(1);
+}
 if (process.argv.slice(2).includes("--print")) {
   if (!startup.testResultsPath) {
     console.error("Error: The --print option requires a --test-results path");
     process.exit(1);
   }
-  await storage.ensureProject(startup.initialProject!);
   const result = verificationReport(
     await storage.verify(startup.initialProject!, startup.testResultsPath),
   );
@@ -139,7 +146,6 @@ if (process.env.SYSTEM_SPECIFICATION_TOOL_DEV === "true") {
 }
 if (startup.initialProject) {
   console.log(`Loading project: ${startup.initialProjectPath}`);
-  await storage.ensureProject(startup.initialProject);
   if (startup.testResultsPath)
     await storage.verify(startup.initialProject, startup.testResultsPath);
 }

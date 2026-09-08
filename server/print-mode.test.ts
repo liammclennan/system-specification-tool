@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,6 +10,41 @@ afterEach(async () => {
 });
 
 describe("command-line print mode", () => {
+  it.each([false, true])(
+    "reports invalid project directories cleanly (print: %s)",
+    async (print) => {
+      const root = await mkdtemp(join(tmpdir(), "spec-tool-invalid-"));
+      roots.push(root);
+      const projectPath = join(root, "invalid-project");
+      await mkdir(projectPath);
+      await writeFile(join(projectPath, "specification.json"), "{}");
+      const run = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          resolve("server/index.ts"),
+          "--project",
+          projectPath,
+          ...(print ? ["--print", "--test-results", root] : []),
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED: "true" },
+          timeout: 20_000,
+        },
+      );
+      expect(run.error).toBeUndefined();
+      expect(run.status).toBe(1);
+      expect(run.stderr).toContain(`Error: Cannot open project directory "${projectPath}"`);
+      expect(run.stderr).toContain("invalid specification.json");
+      expect(run.stderr).toContain("Use --project <path>");
+      expect(run.stderr).not.toMatch(/\n\s+at /);
+      expect(run.stdout).not.toContain("listening at");
+    },
+    25_000,
+  );
+
   it("0971 c905 verifies and prints non-interactively without starting a web server", async () => {
     const root = await mkdtemp(join(tmpdir(), "spec-tool-print-"));
     roots.push(root);
