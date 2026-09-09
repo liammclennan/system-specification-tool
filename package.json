@@ -1,6 +1,6 @@
 {
   "name": "system-specification-tool",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Develop system specifications locally and verify their claims against automated test results.",
   "keywords": [
     "system-specification",
