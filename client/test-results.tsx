@@ -1,4 +1,31 @@
+import { useEffect, useState } from "react";
 import type { VerificationTestFile } from "../shared/types.ts";
+import { api } from "./api.ts";
+
+export function TestResultsPage({ projectName }: { projectName: string }) {
+  const [files, setFiles] = useState<Awaited<ReturnType<typeof api.testResults>>>();
+  const [error, setError] = useState("");
+  useEffect(() => {
+    void api
+      .testResults(projectName)
+      .then(setFiles)
+      .catch((reason: Error) => setError(reason.message));
+  }, [projectName]);
+  return (
+    <main className="test-results-page">
+      <a href="/">← Back to application</a>
+      <h1>Test results</h1>
+      <p className="hint">Tests used to verify {projectName}, grouped by result file.</p>
+      {error ? (
+        <p className="error">{error}</p>
+      ) : files ? (
+        <TestResultsView files={files} />
+      ) : (
+        <p>Loading test results…</p>
+      )}
+    </main>
+  );
+}
 
 export function TestResultsView({ files }: { files: VerificationTestFile[] }) {
   if (!files.length) return <p className="hint">No supported test-result files were found.</p>;

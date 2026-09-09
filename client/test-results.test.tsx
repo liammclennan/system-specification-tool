@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { VerificationTestFile } from "../shared/types.ts";
-import { TestResultsView } from "./TestResultsView.tsx";
+import { TestResultsView } from "./test-results.tsx";
 
 const files: VerificationTestFile[] = [
   {

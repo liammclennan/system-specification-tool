@@ -18,7 +18,7 @@ import {
   type VerificationTest,
 } from "../shared/types.ts";
 import { api } from "./api.ts";
-import { TestResultsView } from "./TestResultsView.tsx";
+import { TestResultsPage } from "./test-results.tsx";
 import { RenderedSpecification } from "./RenderedSpecification.tsx";
 import { SubsystemDetail } from "./SubsystemDetail.tsx";
 
@@ -64,30 +64,7 @@ function saveExpandedNodes(projectName: string, expanded: Set<string>) {
     // Continue with the in-memory expansion state when storage is unavailable.
   }
 }
-function TestResultsPage({ projectName }: { projectName: string }) {
-  const [files, setFiles] = useState<Awaited<ReturnType<typeof api.testResults>>>();
-  const [error, setError] = useState("");
-  useEffect(() => {
-    void api
-      .testResults(projectName)
-      .then(setFiles)
-      .catch((reason: Error) => setError(reason.message));
-  }, [projectName]);
-  return (
-    <main className="test-results-page">
-      <a href="/">← Back to application</a>
-      <h1>Test results</h1>
-      <p className="hint">Tests used to verify {projectName}, grouped by result file.</p>
-      {error ? (
-        <p className="error">{error}</p>
-      ) : files ? (
-        <TestResultsView files={files} />
-      ) : (
-        <p>Loading test results…</p>
-      )}
-    </main>
-  );
-}
+
 function TreeNode({
   node,
   selected,
@@ -133,7 +110,9 @@ function TreeNode({
         >
           {node.children.length ? (open ? "⌄" : "›") : "·"}
         </button>
-        <span className="tree-name">{node.name}</span>
+        <span className="tree-name" title={node.name}>
+          {node.name}
+        </span>
         <span className="count">
           {node.recursiveClaimCount} · {node.verification}
         </span>

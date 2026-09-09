@@ -278,7 +278,6 @@ describe("workspace interface specification", () => {
     await renderWorkspace();
     const detail = within(document.querySelector(".detail")!);
     expect(detail.getByDisplayValue("Root system")).not.toBeNull();
-    expect(detail.getByText(/ID: r111/)).not.toBeNull();
     expect(detail.getByDisplayValue("The system works.")).not.toBeNull();
     expect(detail.getByRole("button", { name: "Child service" })).not.toBeNull();
   });
@@ -355,6 +354,65 @@ describe("workspace interface specification", () => {
       });
     });
     expect(screen.queryByRole("button", { name: /^Save$/ })).toBeNull();
+  });
+
+  it("saves edited content and returns to read-only with one check-button click", async () => {
+    mocked.updateNode.mockResolvedValue(project({ content: "Updated content" }));
+    await renderWorkspace();
+    await userEvent.click(screen.getByRole("button", { name: "Edit content" }));
+    const content = screen.getByDisplayValue("Root content");
+    await userEvent.clear(content);
+    await userEvent.type(content, "Updated content");
+    await userEvent.click(screen.getByRole("button", { name: "Done editing" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Done editing" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Edit content" })).not.toBeNull();
+    });
+    expect(mocked.updateNode).toHaveBeenCalledTimes(1);
+    expect(mocked.updateNode).toHaveBeenCalledWith("System", "root-id", {
+      content: "Updated content",
+    });
+    expect(screen.getByText("Updated content")).not.toBeNull();
+  });
+
+  it("pastes a clipboard image at the selection and saves its Markdown with the check button", async () => {
+    const image = new File(["image"], "clipboard.png", { type: "image/png" });
+    const updated = "Root ![clipboard.png](../assets/pasted.png)";
+    mocked.upload.mockResolvedValue("../assets/pasted.png");
+    mocked.updateNode.mockResolvedValue(project({ content: updated }));
+    await renderWorkspace();
+    await userEvent.click(screen.getByRole("button", { name: "Edit content" }));
+    const editor = screen.getByDisplayValue("Root content") as HTMLTextAreaElement;
+    await userEvent.click(editor);
+    editor.setSelectionRange(5, 12);
+    expect(
+      fireEvent.paste(editor, {
+        clipboardData: {
+          items: [{ kind: "file", type: "image/png", getAsFile: () => image }],
+        },
+      }),
+    ).toBe(false);
+    await waitFor(() => expect(editor.value).toBe(updated));
+    expect(mocked.upload).toHaveBeenCalledWith("System", "root-id", image);
+    await userEvent.click(screen.getByRole("button", { name: "Done editing" }));
+    await waitFor(() =>
+      expect(mocked.updateNode).toHaveBeenCalledWith("System", "root-id", {
+        content: updated,
+      }),
+    );
+  });
+
+  it("preserves normal text paste in the content editor", async () => {
+    await renderWorkspace();
+    await userEvent.click(screen.getByRole("button", { name: "Edit content" }));
+    expect(
+      fireEvent.paste(screen.getByDisplayValue("Root content"), {
+        clipboardData: {
+          items: [{ kind: "string", type: "text/plain" }],
+        },
+      }),
+    ).toBe(true);
+    expect(mocked.upload).not.toHaveBeenCalled();
   });
 
   it("fbb5 creates and maintains specifications from the main interface", async () => {

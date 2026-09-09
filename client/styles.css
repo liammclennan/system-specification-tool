@@ -234,7 +234,7 @@ textarea {
   white-space: nowrap;
 }
 .content-editor {
-  min-height: 12rem;
+  min-height: 20rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .hint {
@@ -258,6 +258,24 @@ textarea {
 }
 .markdown img {
   max-width: 100%;
+}
+.node-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+}
+.node-content-body {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.edit-content {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  position: sticky;
+  top: 1rem;
 }
 .children {
   padding-left: 0;

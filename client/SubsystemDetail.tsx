@@ -25,6 +25,7 @@ export function SubsystemDetail({
   const [claim, setClaim] = useState("");
   const [editingContent, setEditingContent] = useState(!node.content);
   const newClaimInput = useRef<HTMLTextAreaElement>(null);
+  const doneEditingButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     setName(node.name);
     setContent(node.content);
@@ -68,9 +69,7 @@ export function SubsystemDetail({
             onChange={(e) => setName(e.target.value)}
             onBlur={() => name !== node.name && save({ name })}
           />
-          <p className="hint">
-            ID: {node.shortId} · Status: {node.verification}
-          </p>
+          <p className="hint">Status: {node.verification}</p>
         </div>
         <div className="node-actions">
           <button
@@ -144,37 +143,92 @@ export function SubsystemDetail({
         </div>
       </section>
       <section>
-        <h2>Content</h2>
+        <h2>Description</h2>
         {editingContent ? (
-          <>
-            <p className="hint">Markdown is saved directly in this node’s content file.</p>
-            <textarea
-              className="content-editor"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onBlur={() => content !== node.content && save({ content })}
-            />
-            <div>
-              <label className="upload">
-                Upload image{" "}
-                <input type="file" accept="image/*" onChange={(e) => upload(e.target.files?.[0])} />
-              </label>
-              {node.content && (
-                <button
-                  onClick={async () => {
-                    if (content !== node.content) await save({ content });
-                    setEditingContent(false);
-                  }}
-                >
-                  Done editing
-                </button>
-              )}
+          <div className="markdown node-content">
+            {node.content && (
+              <button
+                className="icon-button edit-content"
+                aria-label="Done editing"
+                ref={doneEditingButton}
+                title="Done editing"
+                onClick={async () => {
+                  if (content !== node.content) await save({ content });
+                  setEditingContent(false);
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
+              </button>
+            )}
+            <div className="node-content-body">
+              <textarea
+                className="content-editor"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onPaste={async (event) => {
+                  const images = Array.from(event.clipboardData.items)
+                    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+                    .map((item) => item.getAsFile())
+                    .filter((file): file is File => file !== null);
+                  if (!images.length) return;
+                  event.preventDefault();
+                  const editor = event.currentTarget;
+                  const { selectionStart, selectionEnd } = editor;
+                  try {
+                    const markdown = (
+                      await Promise.all(
+                        images.map(async (file) => {
+                          const ref = await api.upload(project.name, node.id, file);
+                          return `![${file.name.replace(/[\\\[\]]/g, "\\$&")}](${ref})`;
+                        }),
+                      )
+                    ).join("\n\n");
+                    if (!editor.isConnected) return;
+                    setContent(
+                      (current) =>
+                        current.slice(0, selectionStart) + markdown + current.slice(selectionEnd),
+                    );
+                  } catch (error) {
+                    setError((error as Error).message);
+                  }
+                }}
+                onBlur={(event) => {
+                  // The check button saves on click; a blur save can replace it before that click.
+                  if (
+                    doneEditingButton.current &&
+                    event.relatedTarget === doneEditingButton.current
+                  )
+                    return;
+                  if (content !== node.content) void save({ content });
+                }}
+              />
+              <div>
+                <label className="upload">
+                  Upload image{" "}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => upload(e.target.files?.[0])}
+                  />
+                </label>
+              </div>
             </div>
-          </>
+          </div>
         ) : (
-          <>
-            <button onClick={() => setEditingContent(true)}>Edit content</button>
-            <div className="markdown">
+          <div className="markdown node-content">
+            <button
+              className="icon-button edit-content"
+              aria-label="Edit content"
+              title="Edit content"
+              onClick={() => setEditingContent(true)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m16 3 5 5M3 21l5-1L21 7a2.1 2.1 0 0 0-5-5L3 15z" />
+              </svg>
+            </button>
+            <div className="node-content-body">
               <ReactMarkdown>
                 {content.replaceAll(
                   "../assets/",
@@ -182,7 +236,7 @@ export function SubsystemDetail({
                 )}
               </ReactMarkdown>
             </div>
-          </>
+          </div>
         )}
       </section>
       <section>

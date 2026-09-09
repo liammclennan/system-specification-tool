@@ -136,7 +136,7 @@ export class ProjectStorage {
         `${"#".repeat(depth + 1)} ${node.name}`,
         `**Verification status:** ${node.verification}`,
         ...(claims ? [`**Claims:**\n\n${claims}`] : []),
-        ...(content ? [`**Content:**\n\n${content}`] : []),
+        ...(content ? [`**Description:**\n\n${content}`] : []),
         ...node.children.map((child) => renderNode(child, depth + 1)),
       ].join("\n\n");
     };
