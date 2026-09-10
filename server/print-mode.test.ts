@@ -10,6 +10,26 @@ afterEach(async () => {
 });
 
 describe("command-line print mode", () => {
+  it("exits the packaged CLI on startup failure instead of leaving a watcher running", async () => {
+    const root = await mkdtemp(join(tmpdir(), "spec-tool-cli-"));
+    roots.push(root);
+    await writeFile(join(root, "specification.json"), "{}");
+    const run = spawnSync(
+      process.execPath,
+      [resolve("bin/system-specification-tool.mjs"), "--project", root],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED: "true" },
+        timeout: 5_000,
+      },
+    );
+    expect(run.error).toBeUndefined();
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain("Cannot open project directory");
+    expect(run.stdout).not.toContain("Restarting");
+  });
+
   it.each([false, true])(
     "reports invalid project directories cleanly (print: %s)",
     async (print) => {

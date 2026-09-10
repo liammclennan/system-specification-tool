@@ -92,6 +92,25 @@ function parseCargoAssertions(output: string): TestAssertion[] {
   );
 }
 
+function parseXunitConsoleAssertions(output: string): TestAssertion[] {
+  const clean = output.replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, "");
+  const results = new Map<string, TestAssertion>();
+  for (const match of clean.matchAll(
+    /^\s*(\S[^\r\n]*?)\s+\[(FINISHED|FAIL|SKIP)\](?:\s+Time:\s*[\d.]+s)?\s*$/gm,
+  )) {
+    const name = match[1];
+    const status = match[2] === "FAIL" ? "failed" : match[2] === "SKIP" ? "skipped" : "passed";
+    // A FINISHED notification can follow a failure or skip; it must not overwrite the outcome.
+    if (
+      !results.has(name) ||
+      status === "failed" ||
+      (status === "skipped" && results.get(name)?.status !== "failed")
+    )
+      results.set(name, { name, status });
+  }
+  return [...results.values()];
+}
+
 function parseGoTestAssertions(output: string): TestAssertion[] {
   const assertions: TestAssertion[] = [];
   for (const line of output.split(/\r?\n/)) {
@@ -113,7 +132,8 @@ function parseGoTestAssertions(output: string): TestAssertion[] {
 function parseTestAssertions(file: string, raw: string): TestAssertion[] {
   if (/\.trx$/i.test(file)) return parseTrxAssertions(raw);
   if (/\.tap$/i.test(file)) return parseTapAssertions(raw);
-  if (/\.(?:txt|log)$/i.test(file)) return parseCargoAssertions(raw);
+  if (/\.(?:txt|log)$/i.test(file))
+    return [...parseCargoAssertions(raw), ...parseXunitConsoleAssertions(raw)];
   if (/\.(?:xml|junit)$/i.test(file)) return parseXunitAssertions(raw);
   try {
     const report = JSON.parse(raw) as {

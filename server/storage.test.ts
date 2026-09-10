@@ -309,10 +309,10 @@ describe("ProjectStorage", () => {
     expect(markdown).toContain("\n\n# system\n");
     expect(markdown).toContain("**Verification status:** unverified");
     expect(markdown).toContain(`- **unverified** — [${rootClaimShortId}] Root claim.`);
-    expect(markdown).toContain("**Content:**\n\nRoot content.");
+    expect(markdown).toContain("**Description:**\n\nRoot content.");
     expect(markdown.match(/\*\*Claims:\*\*/g)).toHaveLength(1);
     expect(markdown).not.toContain("No claims");
-    expect(markdown.match(/\*\*Content:\*\*/g)).toHaveLength(2);
+    expect(markdown.match(/\*\*Description:\*\*/g)).toHaveLength(2);
     expect(markdown).not.toContain("No content");
     const headings = [...markdown.matchAll(/^(#+) (.+)$/gm)].map(
       (match) => `${match[1]} ${match[2]}`,
@@ -388,6 +388,48 @@ describe("ProjectStorage", () => {
       originalname: "cargo_test_result.txt",
     });
     expect((await store.verify("system")).tree.claims[0].verification).toBe("verified");
+  });
+  it.each(["txt", "log"])(
+    "reads xUnit console outcomes from %s files - bacd",
+    async (extension) => {
+      const root = await mkdtemp(join(tmpdir(), "spec-tool-xunit-"));
+      roots.push(root);
+      const file = join(root, `output.${extension}`);
+      await writeFile(
+        file,
+        [
+          "xUnit.net v3 In-Process Runner",
+          '    Tests.Passes(value: "a [value]") [STARTING]',
+          '\x1b[0m\x1b[90m    Tests.Passes(value: "a [value]") [FINISHED] Time: 0.012s',
+          "    Tests.Fails [STARTING]",
+          "\x1b[0m\x1b[91m    Tests.Fails [FAIL]",
+          "      Assertion failed",
+          "    Tests.Fails [FINISHED] Time: 0.1s",
+          "    Tests.Skipped [SKIP]",
+          "      Not supported here",
+          "    Tests.Skipped [FINISHED] Time: 0s",
+          "    Tests.Unfinished [STARTING]",
+          "=== TEST EXECUTION SUMMARY ===",
+        ].join("\r\n"),
+      );
+      expect((await verificationTests(file))[0].tests).toEqual([
+        { name: 'Tests.Passes(value: "a [value]")', status: "passed" },
+        { name: "Tests.Fails", status: "failed" },
+        { name: "Tests.Skipped", status: "ignored" },
+      ]);
+    },
+  );
+  it("verifies claims from captured xUnit console output", async () => {
+    const store = await fixture();
+    let project = await store.createProject("system");
+    project = await store.createClaim("system", project.rootNodeId, "The service works.");
+    const claim = project.tree.claims[0];
+    await store.saveTestResults("system", project.rootNodeId, {
+      buffer: Buffer.from(`    Tests.Service_${claim.shortId} [FAIL]\n`),
+      mimetype: "text/plain",
+      originalname: "output.txt",
+    });
+    expect((await store.verify("system")).tree.claims[0].verification).toBe("failed");
   });
   it("verifies claims from Go test JSON-lines output", async () => {
     const store = await fixture();

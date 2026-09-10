@@ -53,7 +53,7 @@ system-specification-tool --print --test-results <directory containing test outp
 
 ## Test output file support
 
-Supported formats are JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo test output, and Go `test -json`. Files are read from the configured test-results path. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
+Supported formats are JSON, JUnit/XUnit XML, MSTest TRX, TAP, captured Cargo and xUnit.net verbose console output (`.txt` or `.log`), and Go `test -json`. Files are read from the configured test-results path. Press **Verify** to match test names containing claim short identifiers; matching claims and their containing nodes are marked verified or failed accordingly.
 
 ## Usage with AI agents
 

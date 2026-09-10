@@ -35,7 +35,14 @@ const portArgument =
 const printRequested = projectArgument.includes("--print");
 const serverArguments = printRequested
   ? [join(packageRoot, "server/index.ts"), ...projectArgument]
-  : ["watch", join(packageRoot, "server/index.ts"), "--", ...projectArgument];
+  : [
+      "watch",
+      "--exclude",
+      join(packageRoot, "node_modules", ".vite-temp"),
+      join(packageRoot, "server/index.ts"),
+      "--",
+      ...projectArgument,
+    ];
 const server = spawn(executable("tsx"), serverArguments, {
   cwd: process.cwd(),
   stdio: "inherit",
