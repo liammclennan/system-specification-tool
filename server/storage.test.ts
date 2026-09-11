@@ -32,6 +32,38 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 describe("ProjectStorage", () => {
+  it.each(["\n", "\r\n"])("opens claim files with %j line endings", async (newline) => {
+    const root = await mkdtemp(join(tmpdir(), "spec-tool-line-endings-"));
+    roots.push(root);
+    const store = new ProjectStorage(root);
+    const project = await store.createProject("system");
+    const id = randomUUID();
+    await writeFile(
+      join(root, "system", "claims", `${id}.md`),
+      [
+        "---",
+        `id: ${id}`,
+        `nodeId: ${project.rootNodeId}`,
+        "order: 2",
+        "verification: verified",
+        "ignored: true",
+        "---",
+        "First line.",
+        "Second line.",
+        "",
+      ].join(newline),
+    );
+    const loaded = await store.openProject("system");
+    expect(loaded.tree.claims).toHaveLength(1);
+    expect(loaded.tree.claims[0]).toMatchObject({
+      id,
+      nodeId: project.rootNodeId,
+      order: 2,
+      verification: "verified",
+      ignored: true,
+      text: "First line.\nSecond line.",
+    });
+  });
   it("f735 assigns deterministic unique node short IDs and extends colliding hashes", async () => {
     const collision = new Map<string, string>();
     let pair: [string, string] | undefined;

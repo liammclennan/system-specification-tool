@@ -65,42 +65,46 @@ describe("command-line print mode", () => {
     25_000,
   );
 
-  it("0971 c905 verifies and prints non-interactively without starting a web server", async () => {
-    const root = await mkdtemp(join(tmpdir(), "spec-tool-print-"));
-    roots.push(root);
-    const projectPath = join(root, "print-project");
-    const resultsPath = join(root, "results");
-    await mkdir(projectPath);
-    await mkdir(resultsPath);
-    const run = spawnSync(
-      process.execPath,
-      [
-        "--import",
-        "tsx",
-        resolve("server/index.ts"),
-        "--print",
-        projectPath,
-        "--test-results",
-        resultsPath,
-        "--port",
-        "43129",
-      ],
-      {
-        cwd: resolve("."),
-        encoding: "utf8",
-        env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED: "true" },
-        timeout: 20_000,
-      },
-    );
-    expect(run.error).toBeUndefined();
-    expect(run.status).toBe(0);
-    expect(run.stdout).toContain("Failing claims: 0");
-    expect(run.stdout).toContain("Unverified claims: 0");
-    expect(run.stdout).toContain("Ignored claims: 0");
-    expect(run.stdout).toContain("Verified claims: 0");
-    expect(run.stdout).not.toContain("listening at");
-    expect(await readFile(join(projectPath, "specification.md"), "utf8")).toContain(
-      "# print-project",
-    );
-  }, 25_000);
+  it.each(["server/index.ts", "server/dev.ts"])(
+    "0971 c905 %s verifies and prints non-interactively without starting a web server",
+    async (entryPoint) => {
+      const root = await mkdtemp(join(tmpdir(), "spec-tool-print-"));
+      roots.push(root);
+      const projectPath = join(root, "print-project");
+      const resultsPath = join(root, "results");
+      await mkdir(projectPath);
+      await mkdir(resultsPath);
+      const run = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          resolve(entryPoint),
+          "--print",
+          projectPath,
+          "--test-results",
+          resultsPath,
+          "--port",
+          "43129",
+        ],
+        {
+          cwd: resolve("."),
+          encoding: "utf8",
+          env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_BROWSER_MANAGED: "true" },
+          timeout: 20_000,
+        },
+      );
+      expect(run.error).toBeUndefined();
+      expect(run.status).toBe(0);
+      expect(run.stdout).toContain("Failing claims: 0");
+      expect(run.stdout).toContain("Unverified claims: 0");
+      expect(run.stdout).toContain("Ignored claims: 0");
+      expect(run.stdout).toContain("Verified claims: 0");
+      expect(run.stdout).not.toContain("listening at");
+      expect(await readFile(join(projectPath, "specification.md"), "utf8")).toContain(
+        "# print-project",
+      );
+    },
+    25_000,
+  );
 });

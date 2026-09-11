@@ -15,12 +15,16 @@ if (process.argv.slice(2).includes("--version")) {
   console.log(JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).version);
   process.exit(0);
 }
-const tsx = join(packageRoot, "node_modules", ".bin", "tsx");
-const child = spawn(tsx, [join(packageRoot, "server/index.ts"), ...process.argv.slice(2)], {
-  cwd: process.cwd(),
-  stdio: "inherit",
-  env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_DEV: "true" },
-});
+const tsx = fileURLToPath(import.meta.resolve("tsx/cli"));
+const child = spawn(
+  process.execPath,
+  [tsx, join(packageRoot, "server/index.ts"), ...process.argv.slice(2)],
+  {
+    cwd: process.cwd(),
+    stdio: "inherit",
+    env: { ...process.env, SYSTEM_SPECIFICATION_TOOL_DEV: "true" },
+  },
+);
 child.on("error", (error) => {
   console.error(`Error: Could not start System Specification Tool: ${error.message}`);
   process.exit(1);

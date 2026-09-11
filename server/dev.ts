@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { HELP_TEXT, getVersion, isHelpRequested, resolveStartupConfiguration } from "./startup.ts";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const executable = (name: string) => join(packageRoot, "node_modules", ".bin", name);
+const tsx = fileURLToPath(import.meta.resolve("tsx/cli"));
 const projectArgument = process.argv.slice(2);
 if (isHelpRequested(projectArgument)) {
   console.log(HELP_TEXT);
@@ -43,7 +43,7 @@ const serverArguments = printRequested
       "--",
       ...projectArgument,
     ];
-const server = spawn(executable("tsx"), serverArguments, {
+const server = spawn(process.execPath, [tsx, ...serverArguments], {
   cwd: process.cwd(),
   stdio: "inherit",
   env: {
@@ -71,4 +71,8 @@ function stop(exitCode = 0) {
 }
 process.on("SIGINT", () => stop());
 process.on("SIGTERM", () => stop());
+server.on("error", (error) => {
+  console.error(`Error: Could not start System Specification Tool: ${error.message}`);
+  stop(1);
+});
 server.on("exit", (code) => stop(code ?? 1));

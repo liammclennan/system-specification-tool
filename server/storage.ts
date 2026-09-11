@@ -166,9 +166,11 @@ export class ProjectStorage {
       entry.endsWith(".md"),
     )) {
       const raw = await readFile(join(projectPath, "claims", file), "utf8");
-      const match = raw.match(
-        /^---\nid: ([^\n]+)\nnodeId: ([^\n]+)\n(?:order: (\d+)\n)?(?:verification: (unverified|verified|failed)\n)?(?:ignored: (true|false)\n)?---\n([\s\S]*)$/,
-      );
+      const match = raw
+        .replace(/\r\n/g, "\n")
+        .match(
+          /^---\nid: ([^\n]+)\nnodeId: ([^\n]+)\n(?:order: (\d+)\n)?(?:verification: (unverified|verified|failed)\n)?(?:ignored: (true|false)\n)?---\n([\s\S]*)$/,
+        );
       if (!match || !nodes.has(match[2])) throw new StorageError(`Invalid claim file: ${file}`);
       claims.push({
         id: match[1],
