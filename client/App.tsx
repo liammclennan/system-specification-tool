@@ -289,7 +289,7 @@ function WorkspaceApp() {
                 </summary>
                 <div className="specification-menu-items">
                   <a href="/">Specification</a>
-                  <a href={`/specification/${encodeURIComponent(project.name)}`}>Rendered</a>
+                  <a href={`/specification/${encodeURIComponent(project.name)}`}>Document view</a>
                   <a href={`/test-results/${encodeURIComponent(project.name)}`}>Test results</a>
                 </div>
               </details>
